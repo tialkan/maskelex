@@ -1,5 +1,21 @@
 {
   "extends": "./tsconfig.base.json",
-  "compilerOptions": { "types": ["node"], "paths": { "@maskelex/core-engine/types": ["./packages/core-engine/src/types/contracts.ts"] } },
-  "include": ["packages/**/*.ts", "test/**/*.ts"]
+  "compilerOptions": {
+    "types": [
+      "node"
+    ],
+    "paths": {
+      "@maskelex/core-engine/types": [
+        "./packages/core-engine/src/types/contracts.ts"
+      ]
+    }
+  },
+  "include": [
+    "packages/**/*.ts",
+    "test/**/*.ts",
+    "apps/web/vite.config.ts"
+  ],
+  "exclude": [
+    "packages/core-engine/src/worker/**"
+  ]
 }

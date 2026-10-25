@@ -1,5 +1,28 @@
 {
   "extends": "./tsconfig.json",
-  "compilerOptions": { "lib": ["ES2022", "DOM", "DOM.Iterable"], "types": [] },
-  "include": ["apps/web/src/**/*.ts", "packages/core-engine/src/types/contracts.ts"]
+  "compilerOptions": {
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "types": [],
+    "jsx": "react-jsx",
+    "paths": {
+      "@maskelex/core-engine/types": [
+        "./packages/core-engine/src/types/contracts.ts"
+      ],
+      "@maskelex/core-engine/testing": [
+        "./packages/core-engine/src/testing/index.ts"
+      ],
+      "@maskelex/core-engine/worker": [
+        "./packages/core-engine/src/worker/engine.worker.ts"
+      ]
+    }
+  },
+  "include": [
+    "apps/web/src/**/*.ts",
+    "apps/web/src/**/*.tsx",
+    "packages/core-engine/src/**/*.ts"
+  ]
 }

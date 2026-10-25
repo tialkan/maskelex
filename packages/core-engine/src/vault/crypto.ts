@@ -11,7 +11,7 @@ const err = (message: string): MaskelexError => ({ code: 'E_CRYPTO', message });
 const toB64 = (u: Uint8Array): string => { let s = ''; for (const b of u) s += String.fromCharCode(b); return btoa(s); };
 const fromB64 = (s: string): Uint8Array<ArrayBuffer> => { const bin = atob(s); const u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u; };
 
-async function deriveKey(passphrase: string, salt: Uint8Array<ArrayBuffer>, iterations: number, usage: 'encrypt' | 'decrypt'): Promise<CryptoKey> {
+async function deriveKey(passphrase: string, salt: Uint8Array<ArrayBuffer>, iterations: number, usage: 'encrypt' | 'decrypt'): ReturnType<typeof crypto.subtle.deriveKey> {
   const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(passphrase.normalize('NFC')), 'PBKDF2', false, ['deriveKey']);
   return crypto.subtle.deriveKey({ name: 'PBKDF2', hash: 'SHA-256', salt, iterations }, base, { name: 'AES-GCM', length: 256 }, false, [usage]);
 }

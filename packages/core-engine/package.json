@@ -1,2 +1,14 @@
-{ "name": "@maskelex/core-engine", "private": true, "type": "module",
-  "exports": { ".": "./src/index.ts", "./types": "./src/types/contracts.ts", "./testing": "./src/testing/index.ts" } }
+{
+  "name": "@maskelex/core-engine",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./types": "./src/types/contracts.ts",
+    "./testing": "./src/testing/index.ts",
+    "./worker": "./src/worker/engine.worker.ts"
+  },
+  "dependencies": {
+    "comlink": "^4.4.2"
+  }
+}

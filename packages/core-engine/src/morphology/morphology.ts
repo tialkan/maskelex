@@ -205,7 +205,7 @@ export function profileOf(surface: string): PhonProfile {
   const fallback: PhonProfile = { harmony: 'i', final: 'VOICED', pronominalN: false, source: 'DEFAULT', confidence: 'LOW' };
   const parts = surface.trim().split(/[\s/]+/).filter(Boolean);
   if (!parts.length) return fallback;
-  let last = parts[parts.length - 1]!.replace(/["“”)\],;:]+$/u, '');
+  const last = parts[parts.length - 1]!.replace(/["“”)\],;:]+$/u, '');
   const lower = trLower(last);
   // 1) Sayı ile biten (plaka, dosya no, kimlik no)
   if (/[0-9]$/.test(last)) {

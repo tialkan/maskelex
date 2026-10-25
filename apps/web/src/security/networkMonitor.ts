@@ -3,6 +3,7 @@
 // Aynı köken dışındaki her isteği ENGELLER ve bildirir; aynı köken isteklerini yalnız yol olarak kaydeder.
 import type { NetworkEvent, NetworkKind, NetworkRealm } from '@maskelex/core-engine/types';
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- küresel API yamalaması tip dışı erişim gerektirir
 type AnyGlobal = Record<string, any>;
 
 export function installNetworkGuard(realm: NetworkRealm, report: (e: NetworkEvent) => void): void {

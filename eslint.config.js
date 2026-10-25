@@ -14,6 +14,7 @@ export default tseslint.config(
       'no-restricted-syntax': ['error',
         { selector: 'Literal[regex.pattern=/\\(\\?<[=!]/]', message: 'R-02: lookbehind yasak.' }],
       'no-implied-eval': 'error', 'no-new-func': 'error', 'no-eval': 'error',
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
     },
   },
   { files: ['packages/core-engine/src/ner/**', 'apps/web/src/sw/**', 'apps/web/src/security/networkMonitor.ts'], rules: { 'no-restricted-globals': 'off' } },
