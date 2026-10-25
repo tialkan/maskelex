@@ -1,0 +1,13 @@
+:root { color-scheme: light dark; --mlx-bg: #fbfbfa; --mlx-fg: #1d1d1b; --mlx-muted: #6b6b66; --mlx-line: #deded8; --mlx-accent: #1f4e79; --mlx-warn: #8a3b00; }
+@media (prefers-color-scheme: dark) { :root { --mlx-bg: #161615; --mlx-fg: #ececea; --mlx-muted: #a3a39d; --mlx-line: #33332f; --mlx-accent: #8db8e0; --mlx-warn: #f0a46b; } }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--mlx-bg); color: var(--mlx-fg); font: 16px/1.5 system-ui, sans-serif; }
+.mlx-landing, .mlx-app { max-width: 960px; margin: 0 auto; padding: 24px 16px; }
+.mlx-app textarea { width: 100%; min-height: 180px; padding: 12px; font: inherit; color: inherit; background: transparent; border: 1px solid var(--mlx-line); border-radius: 6px; }
+.mlx-app pre { white-space: pre-wrap; word-break: break-word; padding: 12px; border: 1px solid var(--mlx-line); border-radius: 6px; }
+.mlx-row { display: flex; gap: 8px; align-items: center; margin: 8px 0 24px; flex-wrap: wrap; }
+.mlx-app button { font: inherit; padding: 6px 14px; border-radius: 6px; border: 1px solid var(--mlx-accent); background: var(--mlx-accent); color: var(--mlx-bg); cursor: pointer; }
+.mlx-app button:disabled { opacity: .5; cursor: default; }
+.mlx-muted { color: var(--mlx-muted); }
+.mlx-warn { color: var(--mlx-warn); }
+.mlx-banner { font-size: 14px; padding: 6px 10px; border: 1px dashed var(--mlx-line); border-radius: 6px; }
