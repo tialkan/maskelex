@@ -1,0 +1,2 @@
+{ "name": "@maskelex/document-parsers", "private": true, "type": "module", "exports": { ".": "./src/index.ts" },
+  "dependencies": { "@maskelex/core-engine": "workspace:*" } }

@@ -1,0 +1,14 @@
+{
+  "name": "maskelex",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.dom.json",
+    "test:acceptance": "for f in $(ls test/t*.ts | sort -V); do tsx --tsconfig tsconfig.json \"$f\" || exit 1; done",
+    "test": "pnpm test:acceptance",
+    "check:copy": "node scripts/check-copy.mjs",
+    "lint": "eslint ."
+  },
+  "pnpm": { "onlyBuiltDependencies": ["esbuild"] }
+}

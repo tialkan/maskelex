@@ -1,0 +1,5 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": { "types": ["node"], "paths": { "@maskelex/core-engine/types": ["./packages/core-engine/src/types/contracts.ts"] } },
+  "include": ["packages/**/*.ts", "test/**/*.ts"]
+}
