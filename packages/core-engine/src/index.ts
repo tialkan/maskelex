@@ -9,5 +9,6 @@ export * as twins from './twins/twins';
 export * as rehydrate from './unmask/rehydrate';
 export { merge } from './pipeline/merge';
 export { allocateTokens, buildMaskEdits } from './pipeline/maskText';
+export { BUILT_IN_TEMPLATES, KORUMA, fillTemplate } from './pipeline/templates';
 export { leakAudit } from './pipeline/leakAudit';
 export { createEngine, type EnginePorts } from './pipeline/engine';

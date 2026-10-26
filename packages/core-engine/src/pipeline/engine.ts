@@ -18,6 +18,7 @@ import { encryptVault, decryptVault } from '../vault/crypto';
 import { createNameRuleDetector } from '../names/ruleDetector';
 import { findAmounts, formatTrNumber, parseTrNumber, pickScale } from '../fuzz/amount';
 import { numberToWordsJoined } from '../text/numberWords';
+import { BUILT_IN_TEMPLATES, fillTemplate } from './templates';
 import {
   CATEGORY_SPECS, CONFIDENCE_RANK, DEFAULT_MASKING_OPTIONS, spansOverlap,
   type AnalysisResult, type DocumentId, type DocumentInput, type DocWarning, type EncryptedVaultFile, type EntityCategory,
@@ -473,8 +474,10 @@ export function createEngine(ports: EnginePorts): MaskingEngineApi {
       return result(x, lastDoc(x), 'COMPLETE', {});
     },
 
-    async buildMasked(docId) {
-      return (await masking(docId)).out;
+    async buildMasked(docId, templateId, task) {
+      const { out } = await masking(docId);
+      const tpl = templateId ? BUILT_IN_TEMPLATES.find((t) => t.id === templateId) : undefined;
+      return tpl ? { ...out, withTemplate: fillTemplate(tpl, out.text, task) } : out;
     },
 
     async markIssued(_docId) {

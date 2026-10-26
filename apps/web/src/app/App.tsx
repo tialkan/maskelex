@@ -1,6 +1,7 @@
 // apps/web/src/app/App.tsx
 // F0 iskeleti: yapıştır, analiz et, maskeli metni kopyala, yanıtı geri çöz. Tam arayüz (5.x) AGENT-4'ündür.
 import { useEffect, useRef, useState } from 'react';
+import { BUILT_IN_TEMPLATES } from '@maskelex/core-engine';
 import type { AmountMode, DocumentFormat, EntityCluster, MaskedOutput, MaskingEngineApi, ReviewItem } from '@maskelex/core-engine/types';
 import { LeakReview } from '../components/LeakReview';
 import { platform } from '../platform';
@@ -31,6 +32,11 @@ export function App() {
   const [copied, setCopied] = useState(false);
   const [clipWarn, setClipWarn] = useState(false);
   const [amountMode, setAmountMode] = useState<AmountMode>('OFF');
+  const [tplId, setTplId] = useState('');
+  const [task, setTask] = useState('');
+  // Geri çağırımlar güncel şablon seçimini okusun diye ref'te de tutulur.
+  const tplRef = useRef({ id: '', task: '' });
+  tplRef.current = { id: tplId, task };
   const [entities, setEntities] = useState<readonly EntityCluster[]>([]);
   const [format, setFormat] = useState<DocumentFormat>('txt');
 
@@ -66,12 +72,12 @@ export function App() {
     const r = await e.analyze(docId, proxy(() => {}));
     setEntities(r.entities);
     setCount(r.entities.filter((x) => x.status === 'MASK').length);
-    setMasked(await e.buildMasked(docId));
+    setMasked(await e.buildMasked(docId, tplRef.current.id || undefined, tplRef.current.task));
   };
   const refresh = async (e: Engine, docId: string, r: { entities: readonly EntityCluster[] }): Promise<void> => {
     setEntities(r.entities);
     setCount(r.entities.filter((x) => x.status === 'MASK').length);
-    setMasked(await e.buildMasked(docId));
+    setMasked(await e.buildMasked(docId, tplRef.current.id || undefined, tplRef.current.task));
   };
   const maskLeak = (f: ReviewItem, targetId: string | null): Promise<void> => run(async (e) => {
     const target = entities.find((x) => x.id === targetId);
@@ -85,6 +91,9 @@ export function App() {
     // Belge yokken komut sonucu döndürülemez; boş oturum bu seçenekle yeniden açılır.
     if (!masked) { await e.wipe('NEW_SESSION'); await e.createSession({ amountMode: mode }); return; }
     await refresh(e, masked.docId, await e.command({ type: 'SET_OPTIONS', patch: { amountMode: mode } }));
+  });
+  const applyTemplate = (): Promise<void> => run(async (e) => {
+    if (masked) setMasked(await e.buildMasked(masked.docId, tplRef.current.id || undefined, tplRef.current.task));
   });
   const ackLeak = (f: ReviewItem): Promise<void> => run(async (e) => {
     await refresh(e, f.docId, await e.command({ type: 'ACK_LEAK', docId: f.docId, span: f.span! }));
@@ -102,7 +111,7 @@ export function App() {
   });
   const copy = (): Promise<void> => run(async (e) => {
     if (!masked) return;
-    const r = await platform.copyText(masked.text, 'MASKED');
+    const r = await platform.copyText(masked.withTemplate ?? masked.text, 'MASKED');
     if (!r.ok) throw new Error('pano');
     await e.markIssued(masked.docId);
     setCopied(true);
@@ -151,6 +160,17 @@ export function App() {
           <h2>{tr.maskedLabel}</h2>
           <pre>{masked.text}</pre>
           <LeakReview source={input} findings={masked.leakFindings} entities={entities} busy={busy} onMask={(f, t) => void maskLeak(f, t)} onAck={(f) => void ackLeak(f)} />
+          <div className="mlx-row">
+            <label>{tr.templateLabel}{' '}
+              <select value={tplId} onChange={(ev) => { setTplId(ev.target.value); tplRef.current = { id: ev.target.value, task }; void applyTemplate(); }} disabled={busy}>
+                <option value="">{tr.templateNone}</option>
+                {BUILT_IN_TEMPLATES.map((t) => <option key={t.id} value={t.id}>{t.title}</option>)}
+              </select>
+            </label>
+            {tplId && <input className="mlx-task" value={task} placeholder={tr.taskPlaceholder} onChange={(ev) => setTask(ev.target.value)}
+              onBlur={() => void applyTemplate()} spellCheck={false} autoComplete="off" translate="no" />}
+          </div>
+          {tplId && <p className="mlx-muted">{tr.templateHint}</p>}
           <div className="mlx-row">
             <button onClick={() => void copy()} disabled={busy || masked.leakFindings.length > 0}>{copied ? tr.copied : tr.copy}</button>
             <button onClick={() => void exportMasked()} disabled={busy || masked.leakFindings.length > 0}>{tr.downloadMasked}</button>

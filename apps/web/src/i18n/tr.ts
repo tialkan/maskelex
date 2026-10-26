@@ -30,6 +30,10 @@ export const tr = {
   amountToken: 'Etiketle',
   amountScale: 'Orantılı ölçekle',
   amountScaleWarning: 'Parasal sınırlar (istinaf ve temyiz kesinlik sınırları, harç ve vekalet ücreti tarifesi dilimleri) ölçeklenmiş tutara göre değerlendirilir. Bu konulardaki yanıtları gerçek tutarla yeniden kontrol edin.',
+  templateLabel: 'Şablon:',
+  templateNone: 'Yalnız metin',
+  taskPlaceholder: 'Görev (isteğe bağlı; kişisel veri yazmayın)',
+  templateHint: 'Kopyala düğmesi metni seçilen şablon ve koruma yönergesiyle birlikte kopyalar.',
   downloadDocx: 'Word olarak indir',
   downloadTxt: 'Metin olarak indir',
 } as const;
