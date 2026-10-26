@@ -4,7 +4,7 @@
 // Bu dosya çalışma zamanı bağımlılığı içermez: yalnız tipler, sabitler ve saf yardımcılar.
 // Tüm metin indeksleri UTF-16 kod birimidir (JS string indeksi), aralıklar [start, end) yarı açıktır.
 
-export const CONTRACT_VERSION = '1.0.0' as const;
+export const CONTRACT_VERSION = '1.1.0' as const;
 
 /* ═════════════════════════ 0. TEMEL TİPLER ═════════════════════════ */
 
@@ -641,7 +641,9 @@ export type EntityCommand =
   | { readonly type: 'ADD_MANUAL'; readonly docId: DocumentId; readonly span: TextSpan; readonly category: EntityCategory; readonly role?: LegalRole; readonly applyToAll: boolean }
   | { readonly type: 'REMOVE_MENTION'; readonly mentionId: MentionId }
   | { readonly type: 'UNPROTECT'; readonly docId: DocumentId; readonly span: TextSpan }
-  | { readonly type: 'SET_OPTIONS'; readonly patch: Partial<MaskingOptions> };
+  | { readonly type: 'SET_OPTIONS'; readonly patch: Partial<MaskingOptions> }
+  /** 1.1.0: Sızıntı bulgusunu kullanıcı açıkça onaylar ("Sorun değil"). span kaynak belgededir. */
+  | { readonly type: 'ACK_LEAK'; readonly docId: DocumentId; readonly span: TextSpan };
 
 export interface PromptTemplate {
   readonly id: string;
@@ -656,7 +658,8 @@ export interface MaskedOutput {
   readonly text: string;
   readonly withTemplate?: string;
   readonly tokenCount: number;
-  /** Sızıntı denetimi sonucu: boş değilse kopyalama engellenir (kullanıcı açıkça onaylamadıkça). */
+  /** Sızıntı denetimi sonucu: boş değilse kopyalama ve maskeli dosya engellenir. Onaylanan (ACK_LEAK) bulgular
+   *  listede yer almaz. 1.1.0: bulgu aralıkları KAYNAK belgededir (maskeli metinde değil). */
   readonly leakFindings: readonly ReviewItem[];
 }
 
