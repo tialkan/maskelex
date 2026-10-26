@@ -24,4 +24,13 @@ const surnames = [...new Set(p.last_name.generic.filter(ok))].sort((a, b) => a.l
 const meta = { source: '@faker-js/faker locale tr (person.first_name, person.last_name)', version, license: 'MIT' };
 writeFileSync(new URL('given-names.json', out), JSON.stringify({ meta, names: given }, null, 0) + '\n');
 writeFileSync(new URL('surnames.json', out), JSON.stringify({ meta, names: surnames }, null, 0) + '\n');
+// İkiz sözlüğü (MASTER 3.4.5/9): yalnız cinsiyeti belli adlar ve soyadları. Ortak sözcük olan adlar dışlanır;
+// liste MASTER'daki örneklerdir, sıradan sözcük sözlüğü bağlanınca genişletilir.
+const COMMON_WORDS = new Set(['Deniz', 'Umut', 'Barış', 'Bahar']);
+const twin = [
+  ...Object.entries(given).filter(([n, g]) => g !== 'U' && !COMMON_WORDS.has(n)).map(([text, gender]) => ({ text, kind: 'AD', gender })),
+  ...surnames.map((text) => ({ text, kind: 'SOYAD', gender: 'U' })),
+];
+writeFileSync(new URL('twin-lexicon.json', out), JSON.stringify({ meta, entries: twin }, null, 0) + '\n');
+console.log(`ikiz: ${twin.length}`);
 console.log(`ad: ${Object.keys(given).length}, soyadı: ${surnames.length}, kaynak sürümü ${version}`);

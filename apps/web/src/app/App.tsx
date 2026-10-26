@@ -2,7 +2,7 @@
 // F0 iskeleti: yapıştır, analiz et, maskeli metni kopyala, yanıtı geri çöz. Tam arayüz (5.x) AGENT-4'ündür.
 import { useEffect, useRef, useState } from 'react';
 import { BUILT_IN_TEMPLATES } from '@maskelex/core-engine';
-import type { AmountMode, DocumentFormat, EntityCluster, MaskedOutput, MaskingEngineApi, ReviewItem } from '@maskelex/core-engine/types';
+import type { AmountMode, DocumentFormat, MaskingMode, EntityCluster, MaskedOutput, MaskingEngineApi, ReviewItem } from '@maskelex/core-engine/types';
 import { LeakReview } from '../components/LeakReview';
 import { platform } from '../platform';
 import { proxy, type Remote } from 'comlink';
@@ -32,11 +32,14 @@ export function App() {
   const [copied, setCopied] = useState(false);
   const [clipWarn, setClipWarn] = useState(false);
   const [amountMode, setAmountMode] = useState<AmountMode>('OFF');
+  const [mode, setMode] = useState<MaskingMode>('TOKEN');
   const [tplId, setTplId] = useState('');
   const [task, setTask] = useState('');
   // Geri çağırımlar güncel şablon seçimini okusun diye ref'te de tutulur.
   const tplRef = useRef({ id: '', task: '' });
   tplRef.current = { id: tplId, task };
+  const modeRef = useRef<MaskingMode>('TOKEN');
+  modeRef.current = mode;
   const [entities, setEntities] = useState<readonly EntityCluster[]>([]);
   const [format, setFormat] = useState<DocumentFormat>('txt');
 
@@ -86,10 +89,15 @@ export function App() {
     if (target && added && added !== target.id) r = await e.command({ type: 'MERGE', sourceId: added, targetId: target.id });
     await refresh(e, f.docId, r);
   });
+  const changeMode = (m: MaskingMode): Promise<void> => run(async (e) => {
+    setMode(m);
+    if (!masked) { await e.wipe('NEW_SESSION'); await e.createSession({ mode: m, amountMode }); return; }
+    await refresh(e, masked.docId, await e.command({ type: 'SET_OPTIONS', patch: { mode: m } }));
+  });
   const changeAmountMode = (mode: AmountMode): Promise<void> => run(async (e) => {
     setAmountMode(mode);
     // Belge yokken komut sonucu döndürülemez; boş oturum bu seçenekle yeniden açılır.
-    if (!masked) { await e.wipe('NEW_SESSION'); await e.createSession({ amountMode: mode }); return; }
+    if (!masked) { await e.wipe('NEW_SESSION'); await e.createSession({ amountMode: mode, mode: modeRef.current }); return; }
     await refresh(e, masked.docId, await e.command({ type: 'SET_OPTIONS', patch: { amountMode: mode } }));
   });
   const applyTemplate = (): Promise<void> => run(async (e) => {
@@ -125,7 +133,7 @@ export function App() {
   });
   const doUnmask = (): Promise<void> => run(async (e) => { setRestored((await e.unmask(reply)).text); });
   const wipe = (): Promise<void> => run(async (e) => {
-    await e.wipe('USER'); await e.createSession({ amountMode });
+    await e.wipe('USER'); await e.createSession({ amountMode, mode });
     setInput(''); setMasked(null); setEntities([]); setCopied(false); setReply(''); setRestored(''); setCount(0);
   });
 
@@ -145,6 +153,12 @@ export function App() {
         <button onClick={() => void analyze()} disabled={!ready || busy || input.trim() === ''}>{busy ? tr.analyzing : tr.analyze}</button>
         <button onClick={() => void wipe()} disabled={busy}>{tr.wipe}</button>
         {masked && <span className="mlx-muted">{tr.entities(count)}</span>}
+        <label>{tr.modeLabel}{' '}
+          <select value={mode} onChange={(ev) => void changeMode(ev.target.value as MaskingMode)} disabled={!ready || busy}>
+            <option value="TOKEN">{tr.modeToken}</option>
+            <option value="TWIN">{tr.modeTwin}</option>
+          </select>
+        </label>
         <label>{tr.amountLabel}{' '}
           <select value={amountMode} onChange={(ev) => void changeAmountMode(ev.target.value as AmountMode)} disabled={!ready || busy}>
             <option value="OFF">{tr.amountOff}</option>
@@ -154,6 +168,7 @@ export function App() {
         </label>
         {error && <span className="mlx-warn">{tr.error}</span>}
       </div>
+      {mode === 'TWIN' && <p className="mlx-muted">{tr.modeTwinHint}</p>}
       {amountMode === 'SCALE' && <p className="mlx-warn">{tr.amountScaleWarning}</p>}
       {masked && (
         <section>

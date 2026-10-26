@@ -19,12 +19,14 @@ import { createNameRuleDetector, genderOf } from '../names/ruleDetector';
 import { findAmounts, formatTrNumber, parseTrNumber, pickScale } from '../fuzz/amount';
 import { numberToWordsJoined } from '../text/numberWords';
 import { BUILT_IN_TEMPLATES, fillTemplate } from './templates';
+import { makeTwinPicker, type TwinLexiconEntry } from '../twins/twins';
+import twinData from '../names/data/twin-lexicon.json';
 import {
   CATEGORY_SPECS, CONFIDENCE_RANK, DEFAULT_MASKING_OPTIONS, spansOverlap,
   type AnalysisResult, type DocumentId, type DocumentInput, type DocWarning, type EncryptedVaultFile, type EntityCategory,
   type EntityCluster, type EntityCommand, type EntityId, type EntityMatch, type EntityStatus, type ExportRequest, type GroupToken,
   type LegalRole, type MaskedOutput, type MaskelexError, type MaskingEngineApi, type MaskingOptions, type MaskingSessionVault,
-  type MentionForm, type MentionId, type NameRuleDetectorPort, type DocumentAST, type DocumentCodec, type NerPort, type NerStatus, type ProtectedSpan, type RandomSource, type ResolvedMention,
+  type MentionForm, type MentionId, type TwinName, type NameRuleDetectorPort, type DocumentAST, type DocumentCodec, type NerPort, type NerStatus, type ProtectedSpan, type RandomSource, type ResolvedMention,
   type ReviewItem, type SessionInfo, type TextEdit, type TextSpan, type UnmaskResult, type VaultDocument, type WipeReason,
 } from '../types/contracts';
 
@@ -72,6 +74,9 @@ interface Session {
   imported: MaskingSessionVault | null;
   /** SCALE kipinde gizli ölçek (MASTER 3.2.3). Yalnız bellekte ve şifreli kasada durur. */
   amountK: number | null;
+  /** Fonetik İkiz (MASTER 3.4.5): varlık → ikiz, gerçek soyadı (katlanmış) → ikiz soyadı. Oturum boyunca sabittir. */
+  twins: Map<EntityId, TwinName>;
+  twinSurnames: Map<string, string>;
   lastDocId: DocumentId | null;
   seq: number;
 }
@@ -112,6 +117,8 @@ function applyEdits(text: string, edits: readonly TextEdit[]): { text: string; s
   }
   return { text: out + text.slice(cursor), spans };
 }
+
+const TWIN_LEXICON = (twinData as { entries: TwinLexiconEntry[] }).entries;
 
 /** Tutarlar (MASTER 3.2.3). Rakamla tutar ve hemen ardındaki yazıyla tutar aynı değere (aynı varlığa) bağlanır. */
 function amountMatches(text: string, docId: DocumentId, nextId: () => MentionId): EntityMatch[] {
@@ -183,7 +190,7 @@ export function createEngine(ports: EnginePorts): MaskingEngineApi {
     return {
       sessionId: hex(ports.rng, 4), createdAt, expiresAt: createdAt + options.sessionTimeoutMinutes * 60_000, options,
       locked: false, docs: new Map(), ov: emptyOverrides(), idByKey: new Map(), issued: new Map(), lockedTokens: new Map(),
-      counters: {}, imported: null, amountK: null, lastDocId: null, seq: 0,
+      counters: {}, imported: null, amountK: null, twins: new Map(), twinSurnames: new Map(), lastDocId: null, seq: 0,
     };
   }
 
@@ -272,7 +279,7 @@ export function createEngine(ports: EnginePorts): MaskingEngineApi {
       { ...x.counters }, x.locked,
     );
 
-    const entities: EntityCluster[] = drafts.map((d) => ({
+    const plain: EntityCluster[] = drafts.map((d) => ({
       id: d.id, category: d.category, role: d.role, roleSource: d.roleSource, token: tokens.get(d.id)!,
       issuedTokens: x.issued.get(d.id) ?? [], canonical: d.canonical, surfaces: d.surfaces,
       mentionIds: d.a.mentions.map((m) => m.id), status: d.status, confidence: d.confidence,
@@ -282,7 +289,32 @@ export function createEngine(ports: EnginePorts): MaskingEngineApi {
       ...(d.category === 'KISI' && d.given !== undefined ? { gender: genderOf(d.given) } : {}),
       ...(d.given !== undefined ? { givenCanonical: d.given, phonGiven: profileOf(d.given) } : {}),
     }));
+    const entities = x.options.mode === 'TWIN' ? attachTwins(x, plain) : plain;
     return { entities, mentions: [...byDoc.values()].flat(), byDoc };
+  }
+
+  /** Kişilere ikiz atar. Aday yoksa ikiz verilmez, varlık etiketle kalır (3.4.5/6). */
+  function attachTwins(x: Session, list: EntityCluster[]): EntityCluster[] {
+    const reserved = list.filter((e) => e.category === 'KISI').flatMap((e) => e.surfaces);
+    for (const t of x.twins.values()) reserved.push(t.full);
+    const picker = makeTwinPicker(TWIN_LEXICON, ports.rng, reserved);
+    return list.map((e) => {
+      if (e.category !== 'KISI' || e.status !== 'MASK' || !e.nameParts) return e;
+      let twin = x.twins.get(e.id);
+      if (!twin) {
+        const surname = e.nameParts.surnames.join(' ');
+        const sk = foldKey(surname);
+        // Aile tutarlılığı: aynı gerçek soyadı her zaman aynı ikiz soyadı (3.4.5/3)
+        const twinSur = x.twinSurnames.get(sk) ?? picker.pick('SOYAD', surname, 'U');
+        const twinGiven = twinSur ? picker.pick('AD', e.nameParts.given.at(-1)!, e.gender ?? 'U') : null;
+        if (!twinSur || !twinGiven) return e;
+        x.twinSurnames.set(sk, twinSur);
+        const full = `${twinGiven} ${twinSur}`;
+        twin = { full, given: twinGiven, surname: twinSur, display: `《${full}》` };
+        x.twins.set(e.id, twin);
+      }
+      return { ...e, twin };
+    });
   }
 
   function buildVault(x: Session, dv: Derived): MaskingSessionVault {
@@ -293,7 +325,14 @@ export function createEngine(ports: EnginePorts): MaskingEngineApi {
       sessionId: x.sessionId, createdAt: x.createdAt, expiresAt: x.expiresAt, options: x.options,
       documents: [...x.docs.values()].map((d) => d.meta),
       entities: new Map(dv.entities.map((e) => [e.id, e])), mentions: new Map(dv.mentions.map((m) => [m.id, m])),
-      groups: new Map<string, GroupToken>(), tokenIndex, twinIndex: new Map(), counters: { ...x.counters }, locked: x.locked,
+      groups: new Map<string, GroupToken>(), tokenIndex,
+      twinIndex: new Map<string, { readonly entityId?: EntityId; readonly part: 'FULL' | 'GIVEN' | 'SURNAME' }>(dv.entities.flatMap((e) => {
+        if (!e.twin) return [];
+        const out: Array<[string, { entityId: EntityId; part: 'FULL' | 'GIVEN' | 'SURNAME' }]> = [[foldKey(e.twin.full), { entityId: e.id, part: 'FULL' }]];
+        if (e.twin.given) out.push([foldKey(e.twin.given), { entityId: e.id, part: 'GIVEN' }]);
+        if (e.twin.surname) out.push([foldKey(e.twin.surname), { entityId: e.id, part: 'SURNAME' }]);
+        return out;
+      })), counters: { ...x.counters }, locked: x.locked,
       ...(x.options.amountMode === 'SCALE' && x.amountK !== null ? { amountScale: {
         k: x.amountK,
         pairs: dv.entities.filter((e) => e.category === 'TUTAR' && e.status === 'MASK').map((e) => {
@@ -353,7 +392,16 @@ export function createEngine(ports: EnginePorts): MaskingEngineApi {
         mentions.push({ span: m.span, replacement, kind: 'FUZZ' });
         continue;
       }
-      mentions.push({ span: m.span, replacement: e.token, kind: 'TOKEN', ...(m.suffix ? { suffix: { span: m.suffix.span, text: m.suffix.text } } : {}) });
+      const suffix = m.suffix ? { suffix: { span: m.suffix.span, text: m.suffix.text } } : {};
+      if (e.twin) {
+        // Tek sözcüklü anma ("Kaya'nın") ikizin karşılık gelen parçasıyla yazılır.
+        const w = foldKey(m.surface);
+        const part = e.nameParts?.surnames.some((p) => foldKey(p) === w) ? e.twin.surname
+          : e.nameParts?.given.some((p) => foldKey(p) === w) ? e.twin.given : e.twin.full;
+        mentions.push({ span: m.span, replacement: `《${part}》`, kind: 'TWIN', ...suffix });
+        continue;
+      }
+      mentions.push({ span: m.span, replacement: e.token, kind: 'TOKEN', ...suffix });
     }
     const edits = buildMaskEdits(mentions, x.options.normalizeSuffixesInMaskedText);
     edits.sort((a, b) => a.span.start - b.span.start);
