@@ -25,6 +25,11 @@ export const tr = {
   downloadMasked: 'Maskeli dosyayı indir',
   downloadUdf: 'UDF olarak indir',
   clipboardWebWarning: 'Web sürümünde pano geçmişi ve cihazlar arası pano eşitlemesi denetlenemez. Çözülmüş metni dosya olarak indirmeniz önerilir.',
+  amountLabel: 'Tutarlar:',
+  amountOff: 'Olduğu gibi',
+  amountToken: 'Etiketle',
+  amountScale: 'Orantılı ölçekle',
+  amountScaleWarning: 'Parasal sınırlar (istinaf ve temyiz kesinlik sınırları, harç ve vekalet ücreti tarifesi dilimleri) ölçeklenmiş tutara göre değerlendirilir. Bu konulardaki yanıtları gerçek tutarla yeniden kontrol edin.',
   downloadDocx: 'Word olarak indir',
   downloadTxt: 'Metin olarak indir',
 } as const;

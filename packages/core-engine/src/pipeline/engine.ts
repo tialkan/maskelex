@@ -16,6 +16,8 @@ import { foldKey, isLetter, trLower, trUpper } from '../text/turkish';
 import { toUnmaskView, unmask as unmaskText } from '../unmask/rehydrate';
 import { encryptVault, decryptVault } from '../vault/crypto';
 import { createNameRuleDetector } from '../names/ruleDetector';
+import { findAmounts, formatTrNumber, parseTrNumber, pickScale } from '../fuzz/amount';
+import { numberToWordsJoined } from '../text/numberWords';
 import {
   CATEGORY_SPECS, CONFIDENCE_RANK, DEFAULT_MASKING_OPTIONS, spansOverlap,
   type AnalysisResult, type DocumentId, type DocumentInput, type DocWarning, type EncryptedVaultFile, type EntityCategory,
@@ -67,6 +69,8 @@ interface Session {
   counters: Record<string, number>;
   /** İçe aktarılmış kasa: belge yoksa geri çözme bununla yapılır. */
   imported: MaskingSessionVault | null;
+  /** SCALE kipinde gizli ölçek (MASTER 3.2.3). Yalnız bellekte ve şifreli kasada durur. */
+  amountK: number | null;
   lastDocId: DocumentId | null;
   seq: number;
 }
@@ -106,6 +110,18 @@ function applyEdits(text: string, edits: readonly TextEdit[]): { text: string; s
     cursor = e.span.end;
   }
   return { text: out + text.slice(cursor), spans };
+}
+
+/** Tutarlar (MASTER 3.2.3). Rakamla tutar ve hemen ardındaki yazıyla tutar aynı değere (aynı varlığa) bağlanır. */
+function amountMatches(text: string, docId: DocumentId, nextId: () => MentionId): EntityMatch[] {
+  const out: EntityMatch[] = [];
+  for (const h of findAmounts(text)) {
+    const normalized = `TUTAR:${h.value}`;
+    const base = { docId, category: 'TUTAR' as const, layer: 'L1_CHECKSUM' as const, confidence: 'HIGH' as const, score: 0.95, normalized, flags: [] };
+    out.push({ ...base, id: nextId(), span: h.span, text: text.slice(h.span.start, h.span.end), ruleId: 'L1.TUTAR' });
+    if (h.words) out.push({ ...base, id: nextId(), span: h.words.span, text: h.words.text, ruleId: 'L1.TUTAR_YAZI' });
+  }
+  return out;
 }
 
 /** Tam adı bulunmuş kişilerin soyadı tek başına geçtiğinde ("Yılmaz'ın") aynı kişiye bağlar.
@@ -166,7 +182,7 @@ export function createEngine(ports: EnginePorts): MaskingEngineApi {
     return {
       sessionId: hex(ports.rng, 4), createdAt, expiresAt: createdAt + options.sessionTimeoutMinutes * 60_000, options,
       locked: false, docs: new Map(), ov: emptyOverrides(), idByKey: new Map(), issued: new Map(), lockedTokens: new Map(),
-      counters: {}, imported: null, lastDocId: null, seq: 0,
+      counters: {}, imported: null, amountK: null, lastDocId: null, seq: 0,
     };
   }
 
@@ -235,7 +251,8 @@ export function createEngine(ports: EnginePorts): MaskingEngineApi {
         ? { given: words.slice(0, -1), surnames: words.slice(-1) } : undefined;
       const flagged = a.matches.some((m) => m.flags.some((f) => f.startsWith('AMBIGUOUS_') || f === 'FOREIGN_NAME'));
       const status: EntityStatus = x.ov.status.get(a.key)
-        ?? (best.confidence === 'LOW' || flagged ? 'REVIEW'
+        ?? (category === 'TUTAR' ? (opts.amountMode === 'OFF' ? 'KEEP' : 'MASK')
+          : best.confidence === 'LOW' || flagged ? 'REVIEW'
           : opts.maskedCategories[category] && CONFIDENCE_RANK[best.confidence] >= CONFIDENCE_RANK[opts.autoSelectMinConfidence] ? 'MASK'
             : 'KEEP');
       const given = nameParts?.given[0];
@@ -275,7 +292,19 @@ export function createEngine(ports: EnginePorts): MaskingEngineApi {
       documents: [...x.docs.values()].map((d) => d.meta),
       entities: new Map(dv.entities.map((e) => [e.id, e])), mentions: new Map(dv.mentions.map((m) => [m.id, m])),
       groups: new Map<string, GroupToken>(), tokenIndex, twinIndex: new Map(), counters: { ...x.counters }, locked: x.locked,
+      ...(x.options.amountMode === 'SCALE' && x.amountK !== null ? { amountScale: {
+        k: x.amountK,
+        pairs: dv.entities.filter((e) => e.category === 'TUTAR' && e.status === 'MASK').map((e) => {
+          const { value, style } = parseTrNumber(e.canonical);
+          return { entityId: e.id, fuzzed: formatTrNumber(value * x.amountK!, style), original: e.canonical };
+        }),
+      } } : {}),
     };
+  }
+  /** Ölçek oturum başına bir kez seçilir; sonraki belgeler aynı k ile ölçeklenir (oranlar belgeler arası da korunur). */
+  function scaleK(x: Session): number {
+    if (x.amountK === null) x.amountK = pickScale(ports.rng, x.options.scaleRange);
+    return x.amountK;
   }
 
   function result(x: Session, docId: DocumentId, phase: AnalysisResult['phase'], timingsMs: Record<string, number>): AnalysisResult {
@@ -315,6 +344,13 @@ export function createEngine(ports: EnginePorts): MaskingEngineApi {
     for (const m of dv.byDoc.get(docId) ?? []) {
       const e = m.entityId ? byId.get(m.entityId) : undefined;
       if (!e || e.status !== 'MASK') continue;
+      if (e.category === 'TUTAR' && x.options.amountMode === 'SCALE') {
+        // Oran korumalı ölçek: rakam biçimi korunur, yazıyla tutar yeni değere göre yeniden yazılır.
+        const v = parseTrNumber(e.canonical).value * scaleK(x);
+        const replacement = m.match.ruleId === 'L1.TUTAR_YAZI' ? numberToWordsJoined(Math.round(v)) : formatTrNumber(v, parseTrNumber(m.surface).style);
+        mentions.push({ span: m.span, replacement, kind: 'FUZZ' });
+        continue;
+      }
       mentions.push({ span: m.span, replacement: e.token, kind: 'TOKEN', ...(m.suffix ? { suffix: { span: m.suffix.span, text: m.suffix.text } } : {}) });
     }
     const edits = buildMaskEdits(mentions, x.options.normalizeSuffixesInMaskedText);
@@ -374,7 +410,7 @@ export function createEngine(ports: EnginePorts): MaskingEngineApi {
       const det = toContract(d.text, docId, detectAll(d.text, year()), nextId);
       const ctx = { docId, currentYear: year(), options: x.options };
       const rules = names.detect(d.text, ctx).map((m) => ({ ...m, id: nextId() }));
-      const base = [...det.matches, ...rules];
+      const base = [...det.matches, ...rules, ...amountMatches(d.text, docId, nextId)];
       d.matches = propagateSurnames(d.text, base, det.protectedSpans, nextId); d.prot = det.protectedSpans; d.analyzed = true;
       const timings: Record<string, number> = { deterministic: ports.now() - t0 };
       const ner = ports.ner;
@@ -501,7 +537,7 @@ export function createEngine(ports: EnginePorts): MaskingEngineApi {
       plain.fill(0);
       wipeNow();
       const x = newSession(v.options);
-      x.sessionId = v.sessionId; x.locked = v.locked; x.counters = { ...v.counters }; x.imported = v;
+      x.sessionId = v.sessionId; x.locked = v.locked; x.counters = { ...v.counters }; x.imported = v; x.amountK = v.amountScale?.k ?? null;
       s = x;
       return info(x);
     },
