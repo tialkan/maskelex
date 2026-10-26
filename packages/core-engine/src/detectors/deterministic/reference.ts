@@ -25,14 +25,14 @@ export const LAW_ABBR = ['TBK', 'TMK', 'TCK', 'HMK', 'CMK', 'TTK', 'İİK', 'IIK
   'BK', 'MK', 'SGK', 'KHK', 'AAÜT', 'AAUT', 'TKHK', 'FSEK', 'SMK', 'KMK', 'DMK', 'ÖTV', 'KDV', 'HD', 'CD', 'HGK', 'CGK', 'BAM', 'BİM'];
 const LAW_REF_RE = new RegExp(
   '([0-9]{3,4})\\s+sayılı(?:\\s+[\\p{Lu}][\\p{L}\\.]*){0,5}' +                       // 6098 sayılı Türk Borçlar Kanunu
-  '|(?:' + LAW_ABBR.join('|') + ')(?:\\s*(?:m\\.|md\\.|madde|maddesi|\'?nin|\'?nın|\'?un|\'?ün)\\s*[0-9]+(?:\\/[0-9]+)?(?:\\.\\s?(?:madde|maddesi|fıkra|bent))?)?' +
+  '|(?:' + [...LAW_ABBR].sort((a, b) => b.length - a.length).join('|') + ')(?:\\s*(?:m\\.|md\\.|madde|maddesi|\'?nin|\'?nın|\'?un|\'?ün)\\s*[0-9]+(?:\\/[0-9]+)?(?:\\.\\s?(?:madde|maddesi|fıkra|bent))?)?' +
   '|[0-9]{3,4}\\s*S\\.\\s?K\\.', 'gu');
 
 export function findLawRefs(text: string): Protected[] {
   const out: Protected[] = [];
   for (const m of text.matchAll(LAW_REF_RE)) {
     const s = m.index!, e = s + m[0].length;
-    if (!leftBoundary(text, s) || !rightBoundary(text, e, isDigit)) continue;
+    if (!leftBoundary(text, s) || !rightBoundary(text, e, isAlnum)) continue;   // "AYŞE" içindeki "AY" kanun değildir
     if (/^[\p{Lu}]+$/u.test(m[0]) && !LAW_ABBR.includes(m[0])) continue;
     out.push({ start: s, end: e, reason: 'KANUN_ATFI', ruleId: 'L2.KANUN', ownCaseSuspect: false });
   }
@@ -57,14 +57,14 @@ export function detectTcknYkn(text: string): Raw[] {
   const out: Raw[] = [];
   for (const m of text.matchAll(/[0-9]{11}/g)) {
     const s = m.index!, e = s + 11;
-    if (!leftBoundary(text, s) || !rightBoundary(text, e, isDigit)) continue;
+    if (!leftBoundary(text, s) || !rightBoundary(text, e, isAlnum)) continue;   // "AYŞE" içindeki "AY" kanun değildir
     if (!isValidTckn(m[0])) continue;
     out.push({ start: s, end: e, category: m[0].startsWith('99') ? 'YKN' : 'TCKN', ruleId: 'L1.TCKN', confidence: 'HIGH', normalized: m[0] });
   }
   // Boşluklu yazım yalnız bağlamla: "T.C. Kimlik No: 100 000 001 46"
   for (const m of text.matchAll(/[0-9]{3}\s[0-9]{3}\s[0-9]{3}\s[0-9]{2}/g)) {
     const s = m.index!, e = s + m[0].length, d = digitsOnly(m[0]);
-    if (!leftBoundary(text, s) || !rightBoundary(text, e, isDigit)) continue;
+    if (!leftBoundary(text, s) || !rightBoundary(text, e, isAlnum)) continue;   // "AYŞE" içindeki "AY" kanun değildir
     if (isValidTckn(d) && /kimlik|t\.?\s?c\.?|tckn/.test(ctxLeft(text, s, 30)))
       out.push({ start: s, end: e, category: d.startsWith('99') ? 'YKN' : 'TCKN', ruleId: 'L1.TCKN.BOSLUKLU', confidence: 'HIGH', normalized: d });
   }
@@ -76,7 +76,7 @@ export function detectVkn(text: string): Raw[] {
   const out: Raw[] = [];
   for (const m of text.matchAll(/[0-9]{10}/g)) {
     const s = m.index!, e = s + 10;
-    if (!leftBoundary(text, s) || !rightBoundary(text, e, isDigit)) continue;
+    if (!leftBoundary(text, s) || !rightBoundary(text, e, isAlnum)) continue;   // "AYŞE" içindeki "AY" kanun değildir
     if (!isValidVkn(m[0])) continue;
     const ctx = VKN_CTX.test(ctxLeft(text, s));
     if (!ctx && /^5[0-9]/.test(m[0])) continue;                    // bağlamsız 5xx… → telefon dedektörüne bırak
@@ -90,7 +90,7 @@ export function detectMersisAndCards(text: string): Raw[] {
   const out: Raw[] = [];
   for (const m of text.matchAll(/[0-9](?:[ -]?[0-9]){12,18}/g)) {
     const s = m.index!, e = s + m[0].length, d = digitsOnly(m[0]);
-    if (!leftBoundary(text, s) || !rightBoundary(text, e, isDigit)) continue;
+    if (!leftBoundary(text, s) || !rightBoundary(text, e, isAlnum)) continue;   // "AYŞE" içindeki "AY" kanun değildir
     if (/[0-9] [0-9]{2} [0-9]{2}$/.test(m[0]) && /^0?5/.test(d)) continue;  // telefon biçimi
     const mk = d.length === 16 ? mersisKind(d) : null;
     if (mk) {
