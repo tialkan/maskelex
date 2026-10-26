@@ -1,2 +1,12 @@
-{ "name": "@maskelex/document-parsers", "private": true, "type": "module", "exports": { ".": "./src/index.ts" },
-  "dependencies": { "@maskelex/core-engine": "workspace:*" } }
+{
+  "name": "@maskelex/document-parsers",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@maskelex/core-engine": "workspace:*",
+    "fflate": "^0.8.2"
+  }
+}
