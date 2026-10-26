@@ -51,6 +51,8 @@ interface Overrides {
   removedMentions: Set<MentionId>;
   manual: EntityMatch[];
   unprotected: Array<{ docId: DocumentId; span: TextSpan }>;
+  /** Kullanıcının onayladığı sızıntı bulguları (kaynak aralığı) */
+  ackedLeaks: Array<{ docId: DocumentId; span: TextSpan }>;
 }
 interface Session {
   sessionId: string; createdAt: number; expiresAt: number; options: MaskingOptions; locked: boolean;
@@ -71,7 +73,7 @@ interface Session {
 
 const emptyOverrides = (): Overrides => ({
   status: new Map(), role: new Map(), category: new Map(), canonical: new Map(), mergedInto: new Map(),
-  removedMentions: new Set(), manual: [], unprotected: [],
+  removedMentions: new Set(), manual: [], unprotected: [], ackedLeaks: [],
 });
 
 const hex = (rng: RandomSource, words: number): string =>
@@ -316,8 +318,18 @@ export function createEngine(ports: EnginePorts): MaskingEngineApi {
       mentions.push({ span: m.span, replacement: e.token, kind: 'TOKEN', ...(m.suffix ? { suffix: { span: m.suffix.span, text: m.suffix.text } } : {}) });
     }
     const edits = buildMaskEdits(mentions, x.options.normalizeSuffixesInMaskedText);
+    edits.sort((a, b) => a.span.start - b.span.start);
     const { text, spans } = applyEdits(d.text, edits);
-    const leakFindings = leakAudit({ docId, masked: text, vault: buildVault(x, dv), tokenSpans: spans, currentYear: year() });
+    // Bulgu aralıkları maskeli metinden kaynak belgeye çevrilir: arayüz kaynağı vurgular, "Maskele" komutu
+    // (ADD_MANUAL) kaynak aralığıyla çalışır. Bulgular etiket dışında olduğundan eşleme birebirdir.
+    const toSource = (pos: number): number => {
+      let i = -1;
+      for (let k = 0; k < spans.length && spans[k]!.end <= pos; k++) i = k;
+      return i < 0 ? pos : edits[i]!.span.end + (pos - spans[i]!.end);
+    };
+    const leakFindings = leakAudit({ docId, masked: text, vault: buildVault(x, dv), tokenSpans: spans, currentYear: year() })
+      .map((f) => (f.span ? { ...f, span: { start: toSource(f.span.start), end: toSource(f.span.end) } } : f))
+      .filter((f) => !x.ov.ackedLeaks.some((a) => a.docId === docId && f.span && a.span.start === f.span.start && a.span.end === f.span.end));
     const tokenCount = new Set(mentions.map((m) => m.replacement)).size;
     const out: MaskedOutput = { docId, text, tokenCount, leakFindings };
     return { out, edits, doc: d };
@@ -418,6 +430,7 @@ export function createEngine(ports: EnginePorts): MaskingEngineApi {
         }
         case 'UNPROTECT': ov.unprotected.push({ docId: cmd.docId, span: cmd.span }); break;
         case 'SET_OPTIONS': x.options = { ...x.options, ...cmd.patch }; break;
+        case 'ACK_LEAK': ov.ackedLeaks.push({ docId: cmd.docId, span: cmd.span }); break;
         case 'DETACH_MENTION': case 'ASSIGN_MENTION': case 'RESOLVE_GROUP':
           throw fail('E_EDIT_INVALID', 'Bu komut eşbağ modülü bağlandığında (F2) etkinleşir.');
       }

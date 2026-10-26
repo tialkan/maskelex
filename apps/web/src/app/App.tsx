@@ -1,7 +1,8 @@
 // apps/web/src/app/App.tsx
 // F0 iskeleti: yapıştır, analiz et, maskeli metni kopyala, yanıtı geri çöz. Tam arayüz (5.x) AGENT-4'ündür.
 import { useEffect, useRef, useState } from 'react';
-import type { DocumentFormat, MaskedOutput, MaskingEngineApi } from '@maskelex/core-engine/types';
+import type { DocumentFormat, EntityCluster, MaskedOutput, MaskingEngineApi, ReviewItem } from '@maskelex/core-engine/types';
+import { LeakReview } from '../components/LeakReview';
 import { proxy, type Remote } from 'comlink';
 import { createEngineClient, isMock } from './engineClient';
 import { tr } from '../i18n/tr';
@@ -23,6 +24,7 @@ export function App() {
   const [restored, setRestored] = useState('');
   const [error, setError] = useState(false);
   const [ready, setReady] = useState(false);
+  const [entities, setEntities] = useState<readonly EntityCluster[]>([]);
   const [format, setFormat] = useState<DocumentFormat>('txt');
 
   useEffect(() => {
@@ -56,9 +58,25 @@ export function App() {
     setFormat(f);
     // Geri çağırım worker sınırını Comlink proxy ile geçer (yapılandırılmış kopya işlev taşıyamaz).
     const r = await e.analyze(docId, proxy(() => {}));
+    setEntities(r.entities);
     setCount(r.entities.filter((x) => x.status === 'MASK').length);
     setMasked(await e.buildMasked(docId));
   };
+  const refresh = async (e: Engine, docId: string, r: { entities: readonly EntityCluster[] }): Promise<void> => {
+    setEntities(r.entities);
+    setCount(r.entities.filter((x) => x.status === 'MASK').length);
+    setMasked(await e.buildMasked(docId));
+  };
+  const maskLeak = (f: ReviewItem, targetId: string | null): Promise<void> => run(async (e) => {
+    const target = entities.find((x) => x.id === targetId);
+    let r = await e.command({ type: 'ADD_MANUAL', docId: f.docId, span: f.span!, category: target?.category ?? 'OZEL', applyToAll: false });
+    const added = r.mentions.find((m) => m.span.start === f.span!.start)?.entityId;
+    if (target && added && added !== target.id) r = await e.command({ type: 'MERGE', sourceId: added, targetId: target.id });
+    await refresh(e, f.docId, r);
+  });
+  const ackLeak = (f: ReviewItem): Promise<void> => run(async (e) => {
+    await refresh(e, f.docId, await e.command({ type: 'ACK_LEAK', docId: f.docId, span: f.span! }));
+  });
   const exportMasked = (): Promise<void> => run(async (e) => {
     if (!masked) return;
     download(await e.exportFile({ source: 'MASKED', docId: masked.docId, format: format === 'udf' || format === 'docx' ? format : 'txt' }));
@@ -78,7 +96,7 @@ export function App() {
   const doUnmask = (): Promise<void> => run(async (e) => { setRestored((await e.unmask(reply)).text); });
   const wipe = (): Promise<void> => run(async (e) => {
     await e.wipe('USER'); await e.createSession();
-    setInput(''); setMasked(null); setReply(''); setRestored(''); setCount(0);
+    setInput(''); setMasked(null); setEntities([]); setReply(''); setRestored(''); setCount(0);
   });
 
   return (
@@ -103,7 +121,7 @@ export function App() {
         <section>
           <h2>{tr.maskedLabel}</h2>
           <pre>{masked.text}</pre>
-          {masked.leakFindings.length > 0 && <p className="mlx-warn">{tr.leakBlocked}</p>}
+          <LeakReview source={input} findings={masked.leakFindings} entities={entities} busy={busy} onMask={(f, t) => void maskLeak(f, t)} onAck={(f) => void ackLeak(f)} />
           <div className="mlx-row">
             <button onClick={() => void copy()} disabled={busy || masked.leakFindings.length > 0}>{tr.copy}</button>
             <button onClick={() => void exportMasked()} disabled={busy || masked.leakFindings.length > 0}>{tr.downloadMasked}</button>
