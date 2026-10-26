@@ -4,7 +4,12 @@ export * from './udf/contentXml';
 export * from './udf/zip';
 export { udfCodec, buildContentXml } from './udf/codec';
 export { txtCodec, mdCodec } from './text/plain';
+export { docxCodec } from './docx/codec';
+export { readDocxSync, DocxFormatError } from './docx/reader';
+export { writeDocx } from './docx/writer';
+export { applyEditsToAst } from './ast/remapAst';
 import { udfCodec } from './udf/codec';
 import { txtCodec, mdCodec } from './text/plain';
-/** Codec kaydı: biçim tanıma bu sırayla yapılır. DOCX (3.5.7) A3 tarafından eklenir. */
-export const CODECS = [udfCodec, txtCodec, mdCodec] as const;
+import { docxCodec } from './docx/codec';
+/** Codec kaydı: biçim tanıma bu sırayla yapılır. */
+export const CODECS = [udfCodec, docxCodec, txtCodec, mdCodec] as const;

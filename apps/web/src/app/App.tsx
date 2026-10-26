@@ -8,6 +8,11 @@ import { tr } from '../i18n/tr';
 
 type Engine = MaskingEngineApi | Remote<MaskingEngineApi>;
 
+const fmtOf = (name: string): DocumentFormat => {
+  const n = name.toLocaleLowerCase('tr-TR');
+  return n.endsWith('.udf') ? 'udf' : n.endsWith('.docx') ? 'docx' : 'txt';
+};
+
 export function App() {
   const engine = useRef<Engine | null>(null);
   const [input, setInput] = useState('');
@@ -45,7 +50,7 @@ export function App() {
     const bytes = new Uint8Array(await file.arrayBuffer());
     const { docId, text } = await e.loadDocument({ kind: 'file', fileName: file.name, bytes });
     setInput(text);
-    await finishAnalyze(e, docId, file.name.toLocaleLowerCase('tr-TR').endsWith('.udf') ? 'udf' : 'txt');
+    await finishAnalyze(e, docId, fmtOf(file.name));
   });
   const finishAnalyze = async (e: Engine, docId: string, f: DocumentFormat): Promise<void> => {
     setFormat(f);
@@ -56,9 +61,9 @@ export function App() {
   };
   const exportMasked = (): Promise<void> => run(async (e) => {
     if (!masked) return;
-    download(await e.exportFile({ source: 'MASKED', docId: masked.docId, format: format === 'udf' ? 'udf' : 'txt' }));
+    download(await e.exportFile({ source: 'MASKED', docId: masked.docId, format: format === 'udf' || format === 'docx' ? format : 'txt' }));
   });
-  const exportRestored = (f: 'udf' | 'txt'): Promise<void> => run(async (e) => {
+  const exportRestored = (f: 'udf' | 'docx' | 'txt'): Promise<void> => run(async (e) => {
     download(await e.exportFile({ source: 'UNMASKED', format: f, text: restored }));
   });
   const analyze = (): Promise<void> => run(async (e) => {
@@ -85,7 +90,7 @@ export function App() {
       <textarea id="mlx-in" value={input} onChange={(ev) => setInput(ev.target.value)} spellCheck={false} autoComplete="off" translate="no" />
       <div className="mlx-row">
         <label className="mlx-muted">{tr.fileLabel}{' '}
-          <input type="file" disabled={!ready || busy} accept=".udf,.txt,.md" onChange={(ev) => { const f = ev.target.files?.[0]; if (f) void openFile(f); ev.target.value = ''; }} />
+          <input type="file" disabled={!ready || busy} accept=".udf,.docx,.txt,.md" onChange={(ev) => { const f = ev.target.files?.[0]; if (f) void openFile(f); ev.target.value = ''; }} />
         </label>
       </div>
       <div className="mlx-row">
@@ -111,6 +116,7 @@ export function App() {
           {restored && (<><h2>{tr.unmaskedLabel}</h2><pre>{restored}</pre>
             <div className="mlx-row">
               <button onClick={() => void exportRestored('udf')} disabled={busy}>{tr.downloadUdf}</button>
+              <button onClick={() => void exportRestored('docx')} disabled={busy}>{tr.downloadDocx}</button>
               <button onClick={() => void exportRestored('txt')} disabled={busy}>{tr.downloadTxt}</button>
             </div></>)}
         </section>

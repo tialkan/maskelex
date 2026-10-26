@@ -6,7 +6,7 @@ import type { TextEdit } from '@maskelex/core-engine/types';
 
 export class EditError extends Error {}
 
-/** Ön koşullar: boş olmayan aralık, çakışma yok, satır sonu ve yer tutucu (￼, ​) içermez. */
+/** Ön koşullar: boş olmayan aralık, çakışma yok, satır sonu ve yer tutucu (\uFFFC, \u200B) içermez. */
 export function normalizeEdits(text: string, edits: readonly TextEdit[]): TextEdit[] {
   const sorted = [...edits].sort((a, b) => a.span.start - b.span.start);
   let prevEnd = -1;
@@ -16,7 +16,7 @@ export function normalizeEdits(text: string, edits: readonly TextEdit[]): TextEd
       throw new EditError(`Geçersiz aralık [${start},${end})`);
     if (start < prevEnd) throw new EditError(`Çakışan düzenleme [${start},${end})`);
     const slice = text.slice(start, end);
-    if (/[\n\r￼​]/.test(slice) || /[\n\r]/.test(e.replacement))
+    if (/[\n\r\uFFFC\u200B]/.test(slice) || /[\n\r]/.test(e.replacement))
       throw new EditError(`Düzenleme paragraf sınırını veya yer tutucuyu aşıyor [${start},${end})`);
     prevEnd = end;
   }

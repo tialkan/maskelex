@@ -28,7 +28,7 @@ export function buildContentXml(plain: string): string {
   const paras = plain.replace(/\r\n?/g, '\n').split('\n');
   let text = '', els = '';
   for (const p of paras) {
-    const body = (p.length ? p : '​') + '\n';
+    const body = (p.length ? p : '\u200B') + '\n';
     els += `<paragraph Alignment="3"><content startOffset="${text.length}" length="${body.length}" family="${escAttr('Times New Roman')}" size="12" /></paragraph>\n`;
     text += body;
   }
@@ -55,8 +55,8 @@ export const udfCodec: DocumentCodec = {
     if (zip['documentproperties.xml']) warnings.push({ code: 'UYAP_METADATA_PRESENT', message: 'UYAP doğrulama bilgisi maskeli dosyada yer almayacak.' });
     if (xmlRaw.includes('<image')) warnings.push({ code: 'IMAGES_PRESENT', message: 'Belgedeki görseller taranmaz; görsellerde kişisel veri olabilir.' });
     const others = Object.entries(zip).filter(([n]) => n !== 'content.xml');
-    const placeholders = [...cd.text.matchAll(/[￼​]/g)].map((m) => ({
-      offset: m.index!, char: m[0] as '￼' | '​', kind: m[0] === '￼' ? 'IMAGE' as const : 'EMPTY_PARAGRAPH' as const }));
+    const placeholders = [...cd.text.matchAll(/[\uFFFC\u200B]/g)].map((m) => ({
+      offset: m.index!, char: m[0] as '\uFFFC' | '\u200B', kind: m[0] === '\uFFFC' ? 'IMAGE' as const : 'EMPTY_PARAGRAPH' as const }));
     const source: UdfSource = { xmlRaw, others, readOnly };
     return { format: 'udf', text: cd.text, blocks: [], marks: [], placeholders, warnings, source: { codec: 'udf', opaque: source } };
   },
