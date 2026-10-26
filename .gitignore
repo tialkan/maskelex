@@ -5,3 +5,4 @@ target/
 .env*
 apps/web/public/models/
 *.onnx
+apps/web/dist-pages/

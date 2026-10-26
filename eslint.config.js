@@ -1,7 +1,7 @@
 // MASTER.md 1.8 kurallarının ESLint karşılığı (çekirdek). AGENT-5 genişletir.
 import tseslint from 'typescript-eslint';
 export default tseslint.config(
-  { ignores: ['**/dist/**', '**/dist-desktop/**', 'apps/desktop-tauri/src-tauri/gen/**', '**/node_modules/**', 'apps/desktop-tauri/src-tauri/target/**'] },
+  { ignores: ['**/dist/**', '**/dist-desktop/**', '**/dist-pages/**', 'apps/desktop-tauri/src-tauri/gen/**', '**/node_modules/**', 'apps/desktop-tauri/src-tauri/target/**'] },
   ...tseslint.configs.recommended,
   {
     rules: {

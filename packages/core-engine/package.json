@@ -9,5 +9,6 @@
   },
   "dependencies": {
     "comlink": "^4.4.2"
-  }
+  },
+  "license": "AGPL-3.0-or-later"
 }

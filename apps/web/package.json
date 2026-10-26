@@ -7,7 +7,8 @@
     "dev:mock": "vite --mode mock",
     "build": "vite build",
     "build:desktop": "vite build --mode desktop",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "build:pages": "vite build --mode pages"
   },
   "dependencies": {
     "@maskelex/core-engine": "workspace:*",
@@ -21,5 +22,6 @@
     "@types/react-dom": "^19.2.0",
     "@vitejs/plugin-react": "^6.0.0",
     "vite": "^8.0.0"
-  }
+  },
+  "license": "AGPL-3.0-or-later"
 }

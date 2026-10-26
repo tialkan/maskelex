@@ -3,15 +3,90 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>MaskeLex</title>
-  <meta name="description" content="Hukuki belgelerinizdeki kişisel verileri yapay zekâya göndermeden önce cihazınızda maskeleyin, yanıtı yine cihazınızda geri çözün.">
-  <link rel="stylesheet" href="/src/styles/app.css">
+  <title>MaskeLex: hukuki belgeler için yerel maskeleme</title>
+  <meta name="description" content="Dilekçe, sözleşme ve UDF belgelerindeki kişisel verileri yapay zekâya göndermeden önce kendi cihazınızda maskeleyin; yanıtı yine cihazınızda geri çözün. Ücretsiz ve açık kaynak.">
+  <link rel="stylesheet" href="/src/styles/landing.css">
 </head>
 <body>
-  <main class="mlx-landing">
-    <h1>MaskeLex</h1>
-    <p>Hukuki belgelerinizdeki kişisel verileri yapay zekâya göndermeden önce cihazınızda maskeleyin, yanıtı yine cihazınızda geri çözün. Metniniz sunucuya gönderilmez.</p>
-    <p><a href="/uygulama/">Uygulamayı aç</a></p>
+  <header class="l-hero">
+    <div class="l-wrap">
+      <p class="l-brand">MaskeLex</p>
+      <h1>Yapay zekâ ile çalışın,<br>müvekkil bilgisi cihazınızdan çıkmasın.</h1>
+      <p class="l-lead">Dilekçe, sözleşme ve UDF belgelerindeki ad, T.C. kimlik numarası, IBAN, adres ve dosya numaralarını
+        tarayıcınızda maskeleyin. Maskeli metni dilediğiniz yapay zekâya verin, yanıtı yapıştırın: gerçek bilgiler
+        yine cihazınızda yerine konur.</p>
+      <p class="l-cta"><a class="l-button" href="uygulama/">Uygulamayı aç</a>
+        <a class="l-link" href="https://github.com/tialkan/maskelex">Kaynak kodu</a></p>
+      <p class="l-note">Ücretsiz, kayıt yok, sunucu yok. Açık kaynak (AGPL-3.0).</p>
+    </div>
+  </header>
+
+  <main class="l-wrap">
+    <section class="l-example" aria-label="Örnek">
+      <div>
+        <h2>Önce</h2>
+        <pre>DAVACI : Ayşe Kaya (T.C. Kimlik No: 10000000146)
+DAVALI : Mehmet Öztürk
+Davacı Kaya'nın talebi davalı Öztürk'e bildirilmiştir.</pre>
+      </div>
+      <div>
+        <h2>Yapay zekâya giden</h2>
+        <pre>DAVACI : [DAVACI_1] (T.C. Kimlik No: [TCKN_1])
+DAVALI : [DAVALI_1]
+Davacı [DAVACI_1]'in talebi davalı [DAVALI_1]'e bildirilmiştir.</pre>
+      </div>
+    </section>
+    <p class="l-caption">Örnekteki kişiler ve numara uydurmadır. Ekler de etikete göre yeniden çekilir: "Kaya'nın" değil "[DAVACI_1]'in";
+      böylece adın sesi bile dışarı çıkmaz. Geri çözerken ekler gerçek ada göre düzeltilir: "Ayşe Kaya'ya".</p>
+
+    <section>
+      <h2>Nasıl çalışır</h2>
+      <ol class="l-steps">
+        <li><strong>Maskele.</strong> Metni yapıştırın ya da .udf, .docx, .txt dosyası seçin. Kişiler role göre ([DAVACI_1], [VEKİL_1]), kimlik,
+          iletişim ve finans bilgileri türüne göre etiketlenir. Yargıtay ve Danıştay künyeleri ile kanun atıfları korunur.</li>
+        <li><strong>Kopyala.</strong> Maskelenmemiş bir şey kalırsa kopyalama kilitlenir ve bulgu gösterilir. İsterseniz hazır hukuki şablonlardan
+          biriyle (dilekçe, cevap, sözleşme incelemesi, özet) birlikte kopyalayın.</li>
+        <li><strong>Geri çöz.</strong> Yapay zekânın yanıtını yapıştırın; etiketler gerçek bilgilerle, doğru eklerle yerine konur.
+          Sonucu UDF ya da Word olarak indirin.</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>Gizlilik nasıl sağlanıyor</h2>
+      <ul class="l-points">
+        <li><strong>Sunucu yok.</strong> Uygulama durağan bir sayfadır; bütün işlem tarayıcınızdaki bir arka plan iş parçacığında yapılır.</li>
+        <li><strong>Dış bağlantı yok.</strong> İçerik güvenlik politikası sayfanın başka bir adrese bağlanmasını yasaklar; ayrıca her istek
+          bir ağ denetçisiyle engellenir. Bu, her sürümde otomatik testle doğrulanır.</li>
+        <li><strong>Eşleşme tablosu yalnız bellekte.</strong> Gerçek bilgilerle etiketlerin eşleşmesi diske yazılmaz; oturum süresi dolunca ya da
+          "Oturumu sil" ile silinir. İsterseniz parolayla şifreli dosya olarak saklayabilirsiniz.</li>
+        <li><strong>Temiz çıktı.</strong> Maskeli Word dosyası sıfırdan üretilir: yazar adı, yorumlar ve izlenen değişiklikler taşınmaz.
+          UDF'den e-imza ve UYAP doğrulama bilgisi çıkarılır.</li>
+        <li><strong>Açık kaynak.</strong> Kodun tamamı incelenebilir.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Ek seçenekler</h2>
+      <ul class="l-points">
+        <li><strong>Fonetik İkiz.</strong> Etiket yerine sesçe uyumlu sahte adlar (《Nusret Özkan》): yapay zekâ daha doğal yazar, ekler gerçek ada da uyar.</li>
+        <li><strong>Tutarlar.</strong> Olduğu gibi bırakın, etiketleyin ya da hepsini aynı gizli oranla ölçekleyin; faiz ve pay hesapları orantılı kalır.</li>
+      </ul>
+    </section>
+
+    <section class="l-limits">
+      <h2>Bilmeniz gerekenler</h2>
+      <ul>
+        <li>Otomatik tespit kusursuz değildir. Kopyalamadan önce maskeli metni mutlaka gözden geçirin.</li>
+        <li>Olayın kendisi (tarih, yer, özel ayrıntılar) bir kişiyi tanıtabilir; bunlar maskelenmez.</li>
+        <li>Tarayıcı eklentileri sayfadaki metni okuyabilir. Hassas belgeler için eklentisiz bir tarayıcı profili kullanın.</li>
+        <li>Web sürümünde pano geçmişi denetlenemez; çözülmüş metni dosya olarak indirmeniz önerilir.</li>
+        <li>Bu araç hukuki danışmanlık vermez; kişisel verilerin korunmasına ilişkin yükümlülükleriniz sizde kalır.</li>
+      </ul>
+    </section>
   </main>
+
+  <footer class="l-wrap l-foot">
+    <p>MaskeLex açık kaynaktır (GNU AGPL-3.0). Hata ve öneriler için <a href="https://github.com/tialkan/maskelex/issues">GitHub</a>.</p>
+  </footer>
 </body>
 </html>

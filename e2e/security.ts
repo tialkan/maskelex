@@ -24,7 +24,7 @@ const files = (dir: string): string[] => readdirSync(dir).flatMap((n) => {
 function scanDist(): void {
   // Kütüphanelerin içindeki ad alanı ve belge bağlantıları (istek yapılmaz) izinlidir.
   // OOXML ad alanları (schemas.openxmlformats.org, purl.org) yalnız XML tanımlayıcısıdır, istek değildir.
-  const ALLOWED = [/^https:\/\/(www\.)?maskelex\.com/, /^http:\/\/www\.w3\.org\//, /^https:\/\/react\.dev\//, /^https:\/\/reactjs\.org\//,
+  const ALLOWED = [/^https:\/\/(www\.)?maskelex\.com/, /^https:\/\/github\.com\/tialkan\/maskelex/, /^http:\/\/www\.w3\.org\//, /^https:\/\/react\.dev\//, /^https:\/\/reactjs\.org\//,
     /^http:\/\/schemas\.openxmlformats\.org\//, /^http:\/\/purl\.org\/dc\//];
   const bad: string[] = [];
   for (const f of files(DIST)) {

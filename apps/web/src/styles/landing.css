@@ -1,0 +1,27 @@
+:root { color-scheme: light dark; --bg: #fbfbfa; --fg: #1d1d1b; --muted: #5f5f5a; --line: #e2e2dc; --accent: #1f4e79; --panel: #f2f2ee; --warn: #8a3b00; }
+@media (prefers-color-scheme: dark) { :root { --bg: #151514; --fg: #ececea; --muted: #a6a6a0; --line: #30302c; --accent: #8db8e0; --panel: #1f1f1d; --warn: #f0a46b; } }
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 17px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif; }
+.l-wrap { max-width: 920px; margin: 0 auto; padding: 0 16px; }
+.l-hero { border-bottom: 1px solid var(--line); padding: 56px 0 48px; }
+.l-brand { font-weight: 700; letter-spacing: .02em; color: var(--accent); margin: 0 0 20px; }
+h1 { font-size: clamp(28px, 5vw, 44px); line-height: 1.15; margin: 0 0 20px; letter-spacing: -.01em; }
+h2 { font-size: 22px; margin: 48px 0 12px; }
+.l-lead { font-size: 19px; color: var(--muted); max-width: 720px; margin: 0 0 28px; }
+.l-cta { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; margin: 0 0 12px; }
+.l-button { display: inline-block; background: var(--accent); color: var(--bg); padding: 12px 22px; border-radius: 8px; text-decoration: none; font-weight: 600; }
+.l-button:hover { filter: brightness(1.1); }
+.l-link { color: var(--accent); }
+.l-note { color: var(--muted); font-size: 15px; margin: 0; }
+.l-example { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 40px; }
+.l-example h2 { font-size: 14px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 8px; }
+.l-example pre { margin: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 14px; white-space: pre-wrap; word-break: break-word; font-size: 14px; line-height: 1.55; }
+.l-caption { color: var(--muted); font-size: 15px; }
+.l-steps { padding-left: 22px; } .l-steps li { margin-bottom: 12px; }
+.l-points { padding-left: 20px; } .l-points li { margin-bottom: 10px; }
+.l-limits { border-left: 3px solid var(--warn); padding-left: 16px; margin-top: 48px; }
+.l-limits h2 { margin-top: 0; }
+.l-foot { border-top: 1px solid var(--line); margin-top: 56px; padding: 24px 16px 40px; color: var(--muted); font-size: 15px; }
+a { color: var(--accent); }
+@media (max-width: 680px) { .l-example { grid-template-columns: 1fr; } .l-hero { padding: 36px 0 32px; } }
