@@ -20,5 +20,5 @@ export default tseslint.config(
   { files: ['packages/core-engine/src/ner/**', 'apps/web/src/sw/**', 'apps/web/src/security/networkMonitor.ts'], rules: { 'no-restricted-globals': 'off' } },
   { files: ['test/**', 'scripts/**', 'e2e/**'], rules: { 'no-console': 'off', 'no-restricted-properties': 'off' } },
   // e2e sayfa içinde dış istek denemesi yapar (Ağ Denetçisi testi, 4.11/8)
-  { files: ['e2e/**'], rules: { 'no-restricted-globals': 'off' } },
+  { files: ['e2e/**', 'scripts/fetch-model.mjs'], rules: { 'no-restricted-globals': 'off' } },
 );
