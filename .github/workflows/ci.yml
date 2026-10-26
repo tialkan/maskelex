@@ -23,7 +23,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - run: cargo check --locked --manifest-path apps/desktop-tauri/src-tauri/Cargo.toml
+      - name: cargo check
+        shell: bash
+        # Derleyici hataları GitHub notu olarak da yazılır (günlük indirilemeyen ortamlar için).
+        run: |
+          set -o pipefail
+          cargo check --locked --message-format=short --manifest-path apps/desktop-tauri/src-tauri/Cargo.toml 2>&1 \
+            | tee check.log | sed -nE 's#^([^: ]+\.rs):([0-9]+):([0-9]+): (error|warning)(\[[A-Z0-9]+\])?: (.*)$#::\4 file=\1,line=\2,col=\3::\6#p'
 
   bagimlilik-denetimi:
     runs-on: ubuntu-latest
