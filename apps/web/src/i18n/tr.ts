@@ -24,6 +24,7 @@ export const tr = {
   fileLabel: 'ya da dosya seçin (.udf, .docx, .txt, .md)',
   downloadMasked: 'Maskeli dosyayı indir',
   downloadUdf: 'UDF olarak indir',
+  clipboardWebWarning: 'Web sürümünde pano geçmişi ve cihazlar arası pano eşitlemesi denetlenemez. Çözülmüş metni dosya olarak indirmeniz önerilir.',
   downloadDocx: 'Word olarak indir',
   downloadTxt: 'Metin olarak indir',
 } as const;

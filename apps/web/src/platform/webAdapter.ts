@@ -19,15 +19,9 @@ export const platform: PlatformAdapter = {
       return { ok: true, fingerprint: await fingerprint(text) };
     } catch { return { ok: false, fingerprint: '' }; }
   },
-  async clearClipboardIfUnchanged(fp: string) {
-    // Web'de pano okuma izni gerekir; okunamıyorsa ya da odak yoksa dokunulmaz.
-    try {
-      if (!document.hasFocus()) return false;
-      if ((await fingerprint(await navigator.clipboard.readText())) !== fp) return false;
-      await navigator.clipboard.writeText('');
-      return true;
-    } catch { return false; }
-  },
+  // ADR-0002: Permissions-Policy pano okumayı kapatır (clipboard-read=()); "pano değişmediyse" koşulu web'de
+  // denetlenemez. Kullanıcının sonradan kopyaladığı içeriği silmemek için web'de temizleme yapılmaz; arayüz uyarır.
+  async clearClipboardIfUnchanged(_fp: string) { return false; },
   async saveFile(file) {
     const url = URL.createObjectURL(new Blob([file.bytes as Uint8Array<ArrayBuffer>], { type: file.mime }));
     const a = document.createElement('a');

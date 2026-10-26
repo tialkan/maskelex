@@ -29,6 +29,7 @@ export function App() {
   const [error, setError] = useState(false);
   const [ready, setReady] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [clipWarn, setClipWarn] = useState(false);
   const [entities, setEntities] = useState<readonly EntityCluster[]>([]);
   const [format, setFormat] = useState<DocumentFormat>('txt');
 
@@ -101,6 +102,7 @@ export function App() {
   });
   // Çözülmüş (hassas) metin: gizli panoya yazılır, süre dolunca pano değişmediyse temizlenir (MASTER 4.8).
   const copyRestored = (): Promise<void> => run(async () => {
+    if (!platform.capabilities.concealedClipboard) setClipWarn(true);
     const r = await platform.copyText(restored, 'SENSITIVE');
     if (!r.ok) throw new Error('pano');
     setTimeout(() => { void platform.clearClipboardIfUnchanged(r.fingerprint); }, CLIPBOARD_CLEAR_SECONDS * 1000);
@@ -144,6 +146,7 @@ export function App() {
             <button onClick={() => void doUnmask()} disabled={busy || reply.trim() === ''}>{tr.unmask}</button>
           </div>
           {restored && (<><h2>{tr.unmaskedLabel}</h2><pre>{restored}</pre>
+            {clipWarn && <p className="mlx-warn">{tr.clipboardWebWarning}</p>}
             <div className="mlx-row">
               <button onClick={() => void copyRestored()} disabled={busy}>{tr.copy}</button>
               <button onClick={() => void exportRestored('udf')} disabled={busy}>{tr.downloadUdf}</button>
