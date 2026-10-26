@@ -6,7 +6,7 @@
 import { createEngine } from '../pipeline/engine';
 import { foldKey, isAlnum, leftBoundary, lowerView, rightBoundary, trLower } from '../text/turkish';
 import type {
-  DocumentId, EntityCategory, EntityMatch, LegalRole, MaskingEngineApi, NerPort, NerStatus, RandomSource,
+  DocumentCodec, DocumentId, EntityCategory, EntityMatch, LegalRole, MaskingEngineApi, NerPort, NerStatus, RandomSource,
 } from '../types/contracts';
 
 /** Tohumlu, deterministik kaynak (mulberry32). YALNIZ test içindir; kriptografik değildir. */
@@ -63,6 +63,7 @@ export interface MockEngineOptions {
   readonly ner?: readonly FakeNerEntry[];
   /** Sabit saat (ms). Verilmezse 2026-01-01 başlar, her çağrıda 1 ms ilerler. */
   readonly now?: () => number;
+  readonly codecs?: readonly DocumentCodec[];
 }
 
 /** Başvuru modülleri + sahte NER ile çalışan MaskingEngineApi. */
@@ -72,6 +73,7 @@ export function createMockEngine(opts: MockEngineOptions = {}): MaskingEngineApi
     rng: seededRandom(opts.seed ?? 42),
     now: opts.now ?? (() => ++t),
     ...(opts.ner ? { ner: createFakeNer(opts.ner) } : {}),
+    ...(opts.codecs ? { codecs: opts.codecs } : {}),
   });
 }
 

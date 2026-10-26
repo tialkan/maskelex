@@ -13,7 +13,8 @@
     "@maskelex/core-engine": "workspace:*",
     "comlink": "^4.4.2",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "react-dom": "^19.2.0",
+    "@maskelex/document-parsers": "workspace:*"
   },
   "devDependencies": {
     "@types/react": "^19.2.0",

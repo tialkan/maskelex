@@ -8,9 +8,9 @@ export const isMock = import.meta.env.MODE === 'mock';
 
 export async function createEngineClient(): Promise<MaskingEngineApi | Remote<MaskingEngineApi>> {
   if (isMock) {
-    const { createMockEngine, SAMPLE_NER } = await import('@maskelex/core-engine/testing');
-    return createMockEngine({ ner: SAMPLE_NER });
+    const [{ createMockEngine, SAMPLE_NER }, { CODECS }] = await Promise.all([import('@maskelex/core-engine/testing'), import('@maskelex/document-parsers')]);
+    return createMockEngine({ ner: SAMPLE_NER, codecs: CODECS });
   }
-  const worker = new Worker(new URL('@maskelex/core-engine/worker', import.meta.url), { type: 'module', name: 'engine-worker' });
+  const worker = new Worker(new URL('../worker/engine.worker.ts', import.meta.url), { type: 'module', name: 'engine-worker' });
   return wrap<MaskingEngineApi>(worker);
 }

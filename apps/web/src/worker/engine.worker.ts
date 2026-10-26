@@ -1,11 +1,13 @@
-// packages/core-engine/src/worker/engine.worker.ts
+// apps/web/src/worker/engine.worker.ts
 // Engine Worker girişi: MaskingEngineApi'yi Comlink ile ana iş parçacığına açar.
+// Uygulama katmanında durur: çekirdek motor ile belge codec'lerini birleştirir (paketler arası döngü olmaz).
 // Kasa yalnız bu worker'ın belleğinde yaşar (MASTER 1.3). Ağ denetçisi kurulumu (4.5) AGENT-4 tarafından
 // bu dosyanın ilk satırına eklenir; NerPort istemcisi (A2) F2'de ports.ner olarak bağlanır.
 
 import { expose } from 'comlink';
-import { createEngine } from '../pipeline/engine';
-import type { RandomSource } from '../types/contracts';
+import { createEngine } from '@maskelex/core-engine';
+import { CODECS } from '@maskelex/document-parsers';
+import type { RandomSource } from '@maskelex/core-engine/types';
 
 /** Kriptografik kaynak. Math.random YASAK (R-04). */
 const cryptoRandom: RandomSource = {
@@ -13,4 +15,4 @@ const cryptoRandom: RandomSource = {
   nextFloat: () => crypto.getRandomValues(new Uint32Array(1))[0]! / 4294967296,
 };
 
-expose(createEngine({ rng: cryptoRandom, now: () => Date.now() }));
+expose(createEngine({ rng: cryptoRandom, now: () => Date.now(), codecs: CODECS }));

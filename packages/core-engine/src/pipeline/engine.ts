@@ -21,7 +21,7 @@ import {
   type AnalysisResult, type DocumentId, type DocumentInput, type DocWarning, type EncryptedVaultFile, type EntityCategory,
   type EntityCluster, type EntityCommand, type EntityId, type EntityMatch, type EntityStatus, type ExportRequest, type GroupToken,
   type LegalRole, type MaskedOutput, type MaskelexError, type MaskingEngineApi, type MaskingOptions, type MaskingSessionVault,
-  type MentionForm, type MentionId, type NameRuleDetectorPort, type NerPort, type NerStatus, type ProtectedSpan, type RandomSource, type ResolvedMention,
+  type MentionForm, type MentionId, type NameRuleDetectorPort, type DocumentAST, type DocumentCodec, type NerPort, type NerStatus, type ProtectedSpan, type RandomSource, type ResolvedMention,
   type ReviewItem, type SessionInfo, type TextEdit, type TextSpan, type UnmaskResult, type VaultDocument, type WipeReason,
 } from '../types/contracts';
 
@@ -32,13 +32,15 @@ export interface EnginePorts {
   readonly ner?: NerPort;
   /** Verilmezse kural tabanlı dedektör (3.3.4) kullanılır. */
   readonly names?: NameRuleDetectorPort;
+  /** Belge codec'leri (document-parsers). Verilmezse yalnız metin girişi ve .txt çıktı. */
+  readonly codecs?: readonly DocumentCodec[];
 }
 
 const fail = (code: MaskelexError['code'], message: string): MaskelexError => ({ code, message });
 const NER_DISABLED: NerStatus = { state: 'DISABLED', progress: 0 };
 const APOSTROPHES = "'’";
 
-interface DocState { readonly meta: VaultDocument; readonly text: string; matches: EntityMatch[]; prot: ProtectedSpan[]; analyzed: boolean }
+interface DocState { readonly meta: VaultDocument; readonly text: string; readonly ast: DocumentAST | null; matches: EntityMatch[]; prot: ProtectedSpan[]; analyzed: boolean }
 interface Overrides {
   status: Map<string, EntityStatus>;
   role: Map<string, LegalRole>;
@@ -137,6 +139,7 @@ function propagateSurnames(text: string, matches: EntityMatch[], prot: readonly 
 export function createEngine(ports: EnginePorts): MaskingEngineApi {
   let s: Session | null = null;
   const names = ports.names ?? createNameRuleDetector();
+  const codecs = ports.codecs ?? [];
 
   const year = (): number => new Date(ports.now()).getFullYear();
   const info = (x: Session): SessionInfo => ({
@@ -300,6 +303,26 @@ export function createEngine(ports: EnginePorts): MaskingEngineApi {
     throw fail('E_EDIT_INVALID', 'Varlık bulunamadı.');
   };
 
+  async function masking(docId: DocumentId): Promise<{ out: MaskedOutput; edits: TextEdit[]; doc: DocState }> {
+    const x = live();
+    const d = x.docs.get(docId);
+    if (!d || !d.analyzed) throw fail('E_NO_SESSION', 'Belge henüz analiz edilmedi.');
+    const dv = derive(x);
+    const byId = new Map(dv.entities.map((e) => [e.id, e]));
+    const mentions: MaskMention[] = [];
+    for (const m of dv.byDoc.get(docId) ?? []) {
+      const e = m.entityId ? byId.get(m.entityId) : undefined;
+      if (!e || e.status !== 'MASK') continue;
+      mentions.push({ span: m.span, replacement: e.token, kind: 'TOKEN', ...(m.suffix ? { suffix: { span: m.suffix.span, text: m.suffix.text } } : {}) });
+    }
+    const edits = buildMaskEdits(mentions, x.options.normalizeSuffixesInMaskedText);
+    const { text, spans } = applyEdits(d.text, edits);
+    const leakFindings = leakAudit({ docId, masked: text, vault: buildVault(x, dv), tokenSpans: spans, currentYear: year() });
+    const tokenCount = new Set(mentions.map((m) => m.replacement)).size;
+    const out: MaskedOutput = { docId, text, tokenCount, leakFindings };
+    return { out, edits, doc: d };
+  }
+
   const api: MaskingEngineApi = {
     async createSession(options) {
       wipeNow();
@@ -309,17 +332,24 @@ export function createEngine(ports: EnginePorts): MaskingEngineApi {
 
     async loadDocument(input: DocumentInput) {
       const x = live();
+      let ast: DocumentAST | null = null;
       if (input.kind === 'file') {
-        const lower = trLower(input.fileName);
-        if (!(lower.endsWith('.txt') || lower.endsWith('.md'))) throw fail('E_UNSUPPORTED_FORMAT', 'Bu derlemede yalnız düz metin desteklenir.');
+        const codec = codecs.find((c) => c.sniff(input.bytes, input.fileName));
+        if (!codec) {
+          const lower = trLower(input.fileName);
+          if (!(lower.endsWith('.txt') || lower.endsWith('.md'))) throw fail('E_UNSUPPORTED_FORMAT', 'Bu dosya biçimi desteklenmiyor.');
+        } else {
+          try { ast = await codec.read(input.bytes); } catch { throw fail(codec.format === 'udf' ? 'E_UDF_FORMAT' : 'E_UNSUPPORTED_FORMAT', 'Dosya okunamadı.'); }
+        }
       }
-      const text = (input.kind === 'text' ? input.text : new TextDecoder('utf-8', { fatal: false }).decode(input.bytes)).normalize('NFC');
+      const text = (ast ? ast.text : input.kind === 'text' ? input.text : new TextDecoder('utf-8', { fatal: false }).decode(input.bytes)).normalize('NFC');
+      if (ast && text !== ast.text) ast = { ...ast, text };
       const id: DocumentId = `D-${String(x.docs.size + 1).padStart(3, '0')}`;
-      const format = input.kind === 'file' && trLower(input.fileName).endsWith('.md') ? 'md' : 'txt';
+      const format = ast ? ast.format : input.kind === 'file' && trLower(input.fileName).endsWith('.md') ? 'md' : 'txt';
       const meta: VaultDocument = { id, format, displayName: input.kind === 'file' ? input.fileName : `Metin ${x.docs.size + 1}`, charCount: text.length };
-      x.docs.set(id, { meta, text, matches: [], prot: [], analyzed: false });
+      x.docs.set(id, { meta, text, ast, matches: [], prot: [], analyzed: false });
       x.lastDocId = id;
-      const warnings: DocWarning[] = [];
+      const warnings: DocWarning[] = [...(ast?.warnings ?? [])];
       return { docId: id, text, warnings };
     },
 
@@ -395,23 +425,7 @@ export function createEngine(ports: EnginePorts): MaskingEngineApi {
     },
 
     async buildMasked(docId) {
-      const x = live();
-      const d = x.docs.get(docId);
-      if (!d || !d.analyzed) throw fail('E_NO_SESSION', 'Belge henüz analiz edilmedi.');
-      const dv = derive(x);
-      const byId = new Map(dv.entities.map((e) => [e.id, e]));
-      const mentions: MaskMention[] = [];
-      for (const m of dv.byDoc.get(docId) ?? []) {
-        const e = m.entityId ? byId.get(m.entityId) : undefined;
-        if (!e || e.status !== 'MASK') continue;
-        mentions.push({ span: m.span, replacement: e.token, kind: 'TOKEN', ...(m.suffix ? { suffix: { span: m.suffix.span, text: m.suffix.text } } : {}) });
-      }
-      const edits = buildMaskEdits(mentions, x.options.normalizeSuffixesInMaskedText);
-      const { text, spans } = applyEdits(d.text, edits);
-      const leakFindings = leakAudit({ docId, masked: text, vault: buildVault(x, dv), tokenSpans: spans, currentYear: year() });
-      const tokenCount = new Set(mentions.map((m) => m.replacement)).size;
-      const out: MaskedOutput = { docId, text, tokenCount, leakFindings };
-      return out;
+      return (await masking(docId)).out;
     },
 
     async markIssued(_docId) {
@@ -438,15 +452,24 @@ export function createEngine(ports: EnginePorts): MaskingEngineApi {
 
     async exportFile(req: ExportRequest) {
       const x = live();
-      if (req.format !== 'txt') throw fail('E_UNSUPPORTED_FORMAT', 'Bu derlemede yalnız .txt dışa aktarılır.');
-      let text: string;
+      const name = `${req.source === 'MASKED' ? 'maskeli' : 'cozulmus'}-${hex(ports.rng, 1).slice(0, 4)}.${req.format}`;
+      const mime = req.format === 'udf' ? 'application/octet-stream' : req.format === 'docx'
+        ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' : 'text/plain;charset=utf-8';
+      const codec = codecs.find((c) => c.format === req.format);
       if (req.source === 'MASKED') {
-        text = (await api.buildMasked(req.docId ?? lastDoc(x))).text;
-      } else {
-        if (req.text === undefined) throw fail('E_EDIT_INVALID', 'Çözülmüş metin eksik.');
-        text = req.text;
+        const { out, edits, doc } = await masking(req.docId ?? lastDoc(x));
+        if (out.leakFindings.length) throw fail('E_LEAK_DETECTED', 'Maskelenmemiş bilgi kaldı; önce bulguları giderin.');
+        if (req.format === 'txt') return { fileName: name, mime, bytes: new TextEncoder().encode(out.text) };
+        if (!codec || !doc.ast || doc.ast.format !== req.format) throw fail('E_UNSUPPORTED_FORMAT', 'Maskeli dosya yalnız kaynak biçiminde üretilir.');
+        try {
+          return { fileName: name, mime, bytes: await codec.write(codec.applyEdits(doc.ast, edits), { purpose: 'MASKED_EXPORT', fileName: name }) };
+        } catch { throw fail(req.format === 'udf' ? 'E_UDF_FORMAT' : 'E_DOCX_FORMAT', 'Maskeli dosya üretilemedi.'); }
       }
-      return { fileName: req.source === 'MASKED' ? 'maskeli.txt' : 'cozulmus.txt', mime: 'text/plain;charset=utf-8', bytes: new TextEncoder().encode(text) };
+      if (req.text === undefined) throw fail('E_EDIT_INVALID', 'Çözülmüş metin eksik.');
+      if (req.format === 'txt') return { fileName: name, mime, bytes: new TextEncoder().encode(req.text) };
+      if (!codec) throw fail('E_UNSUPPORTED_FORMAT', 'Bu çıktı biçimi bu derlemede yok.');
+      const ast: DocumentAST = { format: req.format, text: req.text, blocks: [], marks: [], placeholders: [], warnings: [] };
+      return { fileName: name, mime, bytes: await codec.write(ast, { purpose: 'UNMASKED_OUTPUT', fileName: name }) };
     },
 
     async exportVault(passphrase: string) {

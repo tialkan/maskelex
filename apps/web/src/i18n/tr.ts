@@ -17,4 +17,8 @@ export const tr = {
   entities: (n: number): string => `${n} bulgu`,
   mockBanner: 'Geliştirme derlemesi: örnek motor çalışıyor.',
   error: 'İşlem tamamlanamadı.',
+  fileLabel: 'ya da dosya seçin (.udf, .txt, .md)',
+  downloadMasked: 'Maskeli dosyayı indir',
+  downloadUdf: 'UDF olarak indir',
+  downloadTxt: 'Metin olarak indir',
 } as const;

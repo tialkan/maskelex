@@ -15,8 +15,11 @@
       "@maskelex/core-engine/testing": [
         "./packages/core-engine/src/testing/index.ts"
       ],
-      "@maskelex/core-engine/worker": [
-        "./packages/core-engine/src/worker/engine.worker.ts"
+      "@maskelex/core-engine": [
+        "./packages/core-engine/src/index.ts"
+      ],
+      "@maskelex/document-parsers": [
+        "./packages/document-parsers/src/index.ts"
       ]
     }
   },

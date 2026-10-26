@@ -7,6 +7,12 @@
     "paths": {
       "@maskelex/core-engine/types": [
         "./packages/core-engine/src/types/contracts.ts"
+      ],
+      "@maskelex/core-engine": [
+        "./packages/core-engine/src/index.ts"
+      ],
+      "@maskelex/document-parsers": [
+        "./packages/document-parsers/src/index.ts"
       ]
     }
   },
@@ -14,8 +20,5 @@
     "packages/**/*.ts",
     "test/**/*.ts",
     "apps/web/vite.config.ts"
-  ],
-  "exclude": [
-    "packages/core-engine/src/worker/**"
   ]
 }
