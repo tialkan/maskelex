@@ -12,6 +12,8 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test:acceptance
       - run: pnpm check:copy
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:e2e
 
   masaustu:
     # Gizli pano kodu (clipboard.rs) Windows ve macOS'a özgüdür; her iki hedefte de derlenir.
