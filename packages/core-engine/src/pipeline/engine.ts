@@ -15,12 +15,13 @@ import { profileOf, refineWithEvidence } from '../morphology/morphology';
 import { foldKey, isLetter, trLower, trUpper } from '../text/turkish';
 import { toUnmaskView, unmask as unmaskText } from '../unmask/rehydrate';
 import { encryptVault, decryptVault } from '../vault/crypto';
+import { createNameRuleDetector } from '../names/ruleDetector';
 import {
   CATEGORY_SPECS, CONFIDENCE_RANK, DEFAULT_MASKING_OPTIONS, spansOverlap,
   type AnalysisResult, type DocumentId, type DocumentInput, type DocWarning, type EncryptedVaultFile, type EntityCategory,
   type EntityCluster, type EntityCommand, type EntityId, type EntityMatch, type EntityStatus, type ExportRequest, type GroupToken,
   type LegalRole, type MaskedOutput, type MaskelexError, type MaskingEngineApi, type MaskingOptions, type MaskingSessionVault,
-  type MentionForm, type MentionId, type NerPort, type NerStatus, type ProtectedSpan, type RandomSource, type ResolvedMention,
+  type MentionForm, type MentionId, type NameRuleDetectorPort, type NerPort, type NerStatus, type ProtectedSpan, type RandomSource, type ResolvedMention,
   type ReviewItem, type SessionInfo, type TextEdit, type TextSpan, type UnmaskResult, type VaultDocument, type WipeReason,
 } from '../types/contracts';
 
@@ -29,6 +30,8 @@ export interface EnginePorts {
   readonly now: () => number;
   /** Verilmezse NER kapalı sayılır (yalnız Katman 1-2). */
   readonly ner?: NerPort;
+  /** Verilmezse kural tabanlı dedektör (3.3.4) kullanılır. */
+  readonly names?: NameRuleDetectorPort;
 }
 
 const fail = (code: MaskelexError['code'], message: string): MaskelexError => ({ code, message });
@@ -101,8 +104,39 @@ function applyEdits(text: string, edits: readonly TextEdit[]): { text: string; s
   return { text: out + text.slice(cursor), spans };
 }
 
+/** Tam adı bulunmuş kişilerin soyadı tek başına geçtiğinde ("Yılmaz'ın") aynı kişiye bağlar.
+ *  Aynı soyadı birden çok kişide varsa bağlamaz: sızıntı denetimi yakalar, grup etiketi (A2) F2'de gelir. */
+function propagateSurnames(text: string, matches: EntityMatch[], prot: readonly ProtectedSpan[], nextId: () => MentionId): EntityMatch[] {
+  const owners = new Map<string, Set<string>>();
+  for (const m of matches) {
+    if (m.category !== 'KISI') continue;
+    const words = m.text.split(/\s+/).filter(Boolean);
+    if (words.length < 2) continue;
+    const sur = foldKey(words.at(-1)!);
+    (owners.get(sur) ?? owners.set(sur, new Set()).get(sur)!).add(m.normalized ?? foldKey(m.text));
+  }
+  // Tek sözcüklü kişi bulgusu ("Davacı Kaya'nın") bilinen tek bir kişinin soyadıysa o kişiye bağlanır.
+  const out = matches.map((m) => {
+    if (m.category !== 'KISI' || /\s/.test(m.text.trim())) return m;
+    const own = owners.get(foldKey(m.text));
+    return own && own.size === 1 ? { ...m, normalized: [...own][0]! } : m;
+  });
+  const busy = (st: number, en: number): boolean => out.some((m) => st < m.span.end && m.span.start < en)
+    || prot.some((p) => st < p.span.end && p.span.start < en);
+  for (const w of text.matchAll(/\p{L}+/gu)) {
+    const word = w[0], st = w.index!, en = st + word.length;
+    if (word[0] === trLower(word[0]!)) continue;
+    const own = owners.get(foldKey(word));
+    if (!own || own.size !== 1 || busy(st, en)) continue;
+    out.push({ id: nextId(), docId: matches[0]!.docId, span: { start: st, end: en }, text: word, category: 'KISI', layer: 'L3_RULE',
+      confidence: 'MEDIUM', score: 0.7, ruleId: 'L3.RULE.SOYAD_ESLEME', normalized: [...own][0]!, flags: [] });
+  }
+  return out;
+}
+
 export function createEngine(ports: EnginePorts): MaskingEngineApi {
   let s: Session | null = null;
+  const names = ports.names ?? createNameRuleDetector();
 
   const year = (): number => new Date(ports.now()).getFullYear();
   const info = (x: Session): SessionInfo => ({
@@ -296,7 +330,10 @@ export function createEngine(ports: EnginePorts): MaskingEngineApi {
       const t0 = ports.now();
       const nextId = (): MentionId => `M-${String(++x.seq).padStart(6, '0')}`;
       const det = toContract(d.text, docId, detectAll(d.text, year()), nextId);
-      d.matches = det.matches; d.prot = det.protectedSpans; d.analyzed = true;
+      const ctx = { docId, currentYear: year(), options: x.options };
+      const rules = names.detect(d.text, ctx).map((m) => ({ ...m, id: nextId() }));
+      const base = [...det.matches, ...rules];
+      d.matches = propagateSurnames(d.text, base, det.protectedSpans, nextId); d.prot = det.protectedSpans; d.analyzed = true;
       const timings: Record<string, number> = { deterministic: ports.now() - t0 };
       const ner = ports.ner;
       if (!ner || !x.options.nerEnabled || ner.status().state !== 'READY') {
@@ -307,10 +344,10 @@ export function createEngine(ports: EnginePorts): MaskingEngineApi {
       onUpdate(result(x, docId, 'DETERMINISTIC', timings));
       const t1 = ports.now();
       const found = await ner.detect(d.text, docId, (e) => {
-        d.matches = [...det.matches, ...e.matches.map((m) => ({ ...m, id: nextId() }))];
+        d.matches = propagateSurnames(d.text, [...base, ...e.matches.map((m) => ({ ...m, id: nextId() }))], det.protectedSpans, nextId);
         onUpdate(result(x, docId, 'NER_PARTIAL', timings));
       });
-      d.matches = [...det.matches, ...found.map((m) => ({ ...m, id: nextId() }))];
+      d.matches = propagateSurnames(d.text, [...base, ...found.map((m) => ({ ...m, id: nextId() }))], det.protectedSpans, nextId);
       timings['ner'] = ports.now() - t1;
       const r = result(x, docId, 'COMPLETE', timings);
       onUpdate(r);
