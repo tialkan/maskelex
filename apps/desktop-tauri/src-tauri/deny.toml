@@ -1,0 +1,15 @@
+# Yalnız dağıttığımız masaüstü hedefleri denetlenir (ADR-0001).
+[graph]
+targets = ["x86_64-pc-windows-msvc", "aarch64-pc-windows-msvc", "x86_64-apple-darwin", "aarch64-apple-darwin", "x86_64-unknown-linux-gnu"]
+
+[bans]
+deny = [
+  { name = "reqwest" }, { name = "ureq" }, { name = "curl" }, { name = "isahc" }, { name = "attohttpc" }, { name = "surf" },
+  { name = "tauri-plugin-http" }, { name = "tauri-plugin-updater" }, { name = "tauri-plugin-shell" }, { name = "tauri-plugin-opener" },
+]
+[licenses]
+allow = ["MIT", "Apache-2.0", "Apache-2.0 WITH LLVM-exception", "BSD-2-Clause", "BSD-3-Clause", "ISC", "Zlib", "Unicode-3.0", "MPL-2.0"]
+
+# Kendi paketimiz (publish = false) lisans denetimi dışında.
+[licenses.private]
+ignore = true

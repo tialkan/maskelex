@@ -9,14 +9,22 @@ const r = (p: string): string => fileURLToPath(new URL(p, import.meta.url));
 
 export default defineConfig(({ mode }) => ({
   plugins: [react()],
+  resolve: {
+    alias: {
+      '@platform': mode === 'desktop' ? r('../desktop-tauri/src/platform/tauriAdapter.ts') : r('./src/platform/webAdapter.ts'),
+    },
+  },
   base: mode === 'desktop' ? './' : '/',
   build: {
     target: 'es2022',
+    outDir: mode === 'desktop' ? 'dist-desktop' : 'dist',
+    emptyOutDir: true,
     sourcemap: false,
     assetsInlineLimit: 0,
     modulePreload: { polyfill: false },
     rollupOptions: { input: { tanitim: r('./index.html'), uygulama: r('./uygulama/index.html') } },
   },
   worker: { format: 'es' },
-  server: { headers: { 'Cross-Origin-Opener-Policy': 'same-origin', 'Cross-Origin-Embedder-Policy': 'require-corp' } },
+  server: {
+    fs: { allow: [r('../..')] }, headers: { 'Cross-Origin-Opener-Policy': 'same-origin', 'Cross-Origin-Embedder-Policy': 'require-corp' } },
 }));

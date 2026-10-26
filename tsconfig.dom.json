@@ -26,6 +26,7 @@
   "include": [
     "apps/web/src/**/*.ts",
     "apps/web/src/**/*.tsx",
-    "packages/core-engine/src/**/*.ts"
+    "packages/core-engine/src/**/*.ts",
+    "apps/desktop-tauri/src/**/*.ts"
   ]
 }

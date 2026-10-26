@@ -12,3 +12,24 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test:acceptance
       - run: pnpm check:copy
+
+  masaustu:
+    # Gizli pano kodu (clipboard.rs) Windows ve macOS'a özgüdür; her iki hedefte de derlenir.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo check --locked --manifest-path apps/desktop-tauri/src-tauri/Cargo.toml
+
+  bagimlilik-denetimi:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          manifest-path: apps/desktop-tauri/src-tauri/Cargo.toml
+          command: check bans licenses

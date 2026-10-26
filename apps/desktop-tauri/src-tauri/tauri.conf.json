@@ -1,0 +1,46 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "MaskeLex",
+  "version": "0.1.0",
+  "identifier": "com.maskelex.app",
+  "build": {
+    "frontendDist": "../../web/dist-desktop",
+    "devUrl": "http://localhost:5173/uygulama/",
+    "beforeDevCommand": "pnpm --filter @maskelex/web exec vite --mode desktop",
+    "beforeBuildCommand": "pnpm --filter @maskelex/web build:desktop"
+  },
+  "app": {
+    "withGlobalTauri": false,
+    "windows": [{ "label": "main", "title": "MaskeLex", "url": "uygulama/index.html", "width": 1440, "height": 900, "minWidth": 1024, "minHeight": 640, "dragDropEnabled": false }],
+    "security": {
+      "freezePrototype": true,
+      "csp": {
+        "default-src": "'none'",
+        "script-src": "'self' 'wasm-unsafe-eval'",
+        "style-src": "'self'",
+        "img-src": "'self' data: blob:",
+        "font-src": "'self'",
+        "connect-src": "'self' ipc: http://ipc.localhost",
+        "worker-src": "'self'",
+        "manifest-src": "'self'",
+        "base-uri": "'none'",
+        "form-action": "'none'",
+        "frame-src": "'none'",
+        "object-src": "'none'"
+      },
+      "headers": {
+        "Cross-Origin-Opener-Policy": "same-origin",
+        "Cross-Origin-Embedder-Policy": "require-corp",
+        "X-Content-Type-Options": "nosniff",
+        "Permissions-Policy": "camera=(), microphone=(), geolocation=()"
+      }
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["app", "dmg", "nsis"],
+    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/icon.png"],
+    "macOS": { "minimumSystemVersion": "13.3", "hardenedRuntime": true, "entitlements": "./entitlements.plist" },
+    "windows": { "nsis": { "installMode": "currentUser" } }
+  }
+}

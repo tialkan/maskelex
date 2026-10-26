@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-pano-yaz"
+description = "Enables the pano_yaz command without any pre-configured scope."
+commands.allow = ["pano_yaz"]
+
+[[permission]]
+identifier = "deny-pano-yaz"
+description = "Denies the pano_yaz command without any pre-configured scope."
+commands.deny = ["pano_yaz"]
