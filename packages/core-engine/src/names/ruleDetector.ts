@@ -1,9 +1,11 @@
 // packages/core-engine/src/names/ruleDetector.ts
 // Kural tabanlı ad, şirket ve kurum dedektörü (MASTER 3.3.4). Model olmadan çalışır; NER'in yedeğidir.
 // Bu sürüm: K1 (rol ipucu), K2/K3 (unvan), K5 (baş harf), K6 (şirket), K7 (kurum) ve dışlamalar.
-// K4 (ad sözlüğü) ve K8 (soyadı sözlüğü + kesme) names/data sözlükleri eklenince bağlanır.
+// K4 (ad sözlüğü) ve K8 (soyadı sözlüğü + kesme): names/data (kaynak: scripts/build-name-lexicon.mjs).
 // Kurallar: lookbehind yok (R-02), /i yok, bağlam lowerView üzerinde (R-03).
 
+import givenData from './data/given-names.json';
+import surnameData from './data/surnames.json';
 import { foldKey, leftBoundary, lowerView, rightBoundary } from '../text/turkish';
 import {
   ROLE_CUES, type Confidence, type DetectContext, type EntityCategory, type EntityMatch, type LegalRole, type NameRuleDetectorPort,
@@ -36,6 +38,13 @@ const HON_AFTER: ReadonlyArray<readonly [string, EntityMatch['honorificAfter'] &
 /** Ad belirteci: "Ahmet" ya da "AHMET". Kesme işaretinden önce durur. */
 const NAME_TOKEN = /^(\p{Lu}\p{Ll}+|\p{Lu}{2,})(?![\p{L}\p{N}])/u;
 const isNameWord = (w: string): boolean => NAME_TOKEN.test(w) && !EXCLUDED.has(foldKey(w));
+
+/** Sözlükler büyük/küçük harf ve Türkçe karakter katlanmış anahtarla sorgulanır ("YILMAZ" = "Yılmaz"). */
+const GIVEN: ReadonlyMap<string, 'E' | 'K' | 'U'> = new Map(Object.entries(givenData.names as Record<string, 'E' | 'K' | 'U'>).map(([n, g]) => [foldKey(n), g]));
+const SURNAMES: ReadonlySet<string> = new Set((surnameData.names as string[]).map(foldKey));
+export const isGivenName = (w: string): boolean => GIVEN.has(foldKey(w));
+export const isSurname = (w: string): boolean => SURNAMES.has(foldKey(w));
+export const genderOf = (given: string): 'E' | 'K' | 'U' => GIVEN.get(foldKey(given)) ?? 'U';
 
 interface Hit { start: number; end: number; category: EntityCategory; confidence: Confidence; rule: string; role?: LegalRole;
   honorificBefore?: EntityMatch['honorificBefore']; honorificAfter?: EntityMatch['honorificAfter']; prio: number }
@@ -163,6 +172,27 @@ export function detectNames(text: string): Hit[] {
       }
       if (words) out.push({ start, end: i - 1, category: 'KISI', confidence: 'MEDIUM', rule: 'L3.RULE.UNVAN_ARKADA', honorificAfter: tag, prio: 2 });
     }
+  }
+  // K4: sözlükteki ad + 1-2 ad belirteci. Ardından gelen sözcük soyadı sözlüğündeyse ORTA, değilse DÜŞÜK
+  // (inceleme kuyruğu; "Deniz Kuvvetleri" gibi sıradan sözcük çakışmaları otomatik maskelenmez).
+  for (const m of text.matchAll(/\p{Lu}\p{Ll}+|\p{Lu}{3,}/gu)) {
+    const s = m.index!;
+    if (!leftBoundary(text, s) || !isGivenName(m[0]) || EXCLUDED.has(foldKey(m[0]))) continue;
+    const r = readNames(text, s, 3);
+    if (!r || r.words.length < 2) continue;
+    const rest = r.words.slice(1);
+    const known = rest.some(isSurname);
+    // Tümü büyük harfli satırlarda (başlıklar) yalnız soyadı sözlüğüyle doğrulanan dizi kabul edilir.
+    if (!known && r.words.every((w) => w === w.toLocaleUpperCase('tr-TR'))) continue;
+    out.push({ start: r.start, end: r.end, category: 'KISI', confidence: known ? 'MEDIUM' : 'LOW', rule: 'L3.RULE.AD_SOZLUK', prio: 1 });
+  }
+  // K8: cümle ortasında büyük harfli sözcük + kesme + ek, sözcük soyadı sözlüğünde ("... ile Yılmaz'ın ...")
+  for (const m of text.matchAll(/(\p{Lu}\p{Ll}+)['’]\p{Ll}+/gu)) {
+    const s = m.index!, w = m[1]!;
+    if (!leftBoundary(text, s) || !isSurname(w) || EXCLUDED.has(foldKey(w))) continue;
+    const before = text.slice(Math.max(0, s - 3), s);
+    if (s === 0 || /[.!?:]\s*$|\n\s*$/.test(before)) continue;      // cümle başı değil
+    out.push({ start: s, end: s + w.length, category: 'KISI', confidence: 'LOW', rule: 'L3.RULE.SOYAD_KESME', prio: 0 });
   }
   // K5: baş harf + soyadı ("A. Yılmaz")
   for (const m of text.matchAll(/\p{Lu}\. ?(\p{Lu}\p{Ll}+)/gu)) {

@@ -13,6 +13,15 @@ assert.deepEqual(found('Ankara Büyükşehir Belediyesi ve ABC Gıda San. ve Tic
 // Dışlamalar: il, ay, kanun ve başlık sözcükleri ad sayılmaz
 assert.deepEqual(found('Davacı Ankara Mart ayında başvurdu. Türk Borçlar Kanunu uyarınca.'), []);
 assert.deepEqual(found('davacının talebi'), []);
+// K4 sözlük: soyadı sözlükte ise ORTA, değilse DÜŞÜK (inceleme); büyük harfli başlık yalnız sözlükle
+const conf = (t: string): string[] => detectNames(t).map((h) => `${h.confidence}:${t.slice(h.start, h.end)}`);
+assert.deepEqual(conf('Bu toplantıya Mehmet Öztürk katıldı.'), ['MEDIUM:Mehmet Öztürk']);
+assert.deepEqual(conf('Ahmet Can Demir ve Fatma Şahin tanıktır.'), ['MEDIUM:Ahmet Can Demir', 'MEDIUM:Fatma Şahin']);
+assert.deepEqual(conf('Deniz Kuvvetleri Komutanlığı yazı gönderdi.'), ['LOW:Deniz Kuvvetleri Komutanlığı']);
+assert.deepEqual(conf('ANKARA BÖLGE ADLİYE MAHKEMESİ'), []);
+// K8 kesme kanıtı: cümle ortasında DÜŞÜK, cümle başında yok
+assert.deepEqual(conf("Taraflar ile Yılmaz'ın arasında"), ['LOW:Yılmaz']);
+assert.deepEqual(conf("Yılmaz'ın talebi."), []);
 
 async function main(): Promise<void> {
   // NER olmadan: kural dedektörü + soyadı bağlama, sızıntı denetimi temiz

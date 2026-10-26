@@ -17,6 +17,7 @@
     ]
   },
   "devDependencies": {
+    "@faker-js/faker": "10.6.0",
     "@types/node": "^22.10.0",
     "eslint": "^10.13.0",
     "fflate": "^0.8.3",

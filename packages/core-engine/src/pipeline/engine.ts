@@ -15,7 +15,7 @@ import { profileOf, refineWithEvidence } from '../morphology/morphology';
 import { foldKey, isLetter, trLower, trUpper } from '../text/turkish';
 import { toUnmaskView, unmask as unmaskText } from '../unmask/rehydrate';
 import { encryptVault, decryptVault } from '../vault/crypto';
-import { createNameRuleDetector } from '../names/ruleDetector';
+import { createNameRuleDetector, genderOf } from '../names/ruleDetector';
 import { findAmounts, formatTrNumber, parseTrNumber, pickScale } from '../fuzz/amount';
 import { numberToWordsJoined } from '../text/numberWords';
 import { BUILT_IN_TEMPLATES, fillTemplate } from './templates';
@@ -279,6 +279,7 @@ export function createEngine(ports: EnginePorts): MaskingEngineApi {
       phon: refineWithEvidence(profileOf(d.canonical), d.observedSuffixes), observedSuffixes: d.observedSuffixes,
       ...(d.normalized !== undefined ? { normalizedValue: d.normalized } : {}),
       ...(d.nameParts ? { nameParts: d.nameParts } : {}),
+      ...(d.category === 'KISI' && d.given !== undefined ? { gender: genderOf(d.given) } : {}),
       ...(d.given !== undefined ? { givenCanonical: d.given, phonGiven: profileOf(d.given) } : {}),
     }));
     return { entities, mentions: [...byDoc.values()].flat(), byDoc };
