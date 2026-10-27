@@ -18,7 +18,7 @@ const conf = (t: string): string[] => detectNames(t).map((h) => `${h.confidence}
 assert.deepEqual(conf('Bu toplantıya Mehmet Öztürk katıldı.'), ['MEDIUM:Mehmet Öztürk']);
 assert.deepEqual(conf('Ahmet Can Demir ve Fatma Şahin tanıktır.'), ['MEDIUM:Ahmet Can Demir', 'MEDIUM:Fatma Şahin']);
 assert.deepEqual(conf('Deniz Kuvvetleri Komutanlığı yazı gönderdi.'), ['LOW:Deniz Kuvvetleri Komutanlığı']);
-assert.deepEqual(conf('ANKARA BÖLGE ADLİYE MAHKEMESİ'), []);
+assert.deepEqual(conf('ANKARA BÖLGE ADLİYE MAHKEMESİ'), ['HIGH:ANKARA BÖLGE ADLİYE MAHKEMESİ']);
 // K8 kesme kanıtı: cümle ortasında DÜŞÜK, cümle başında yok
 assert.deepEqual(conf("Taraflar ile Yılmaz'ın arasında"), ['LOW:Yılmaz']);
 assert.deepEqual(conf("Yılmaz'ın talebi."), []);
@@ -43,3 +43,12 @@ Davacı Kaya'nın talebi, davalı Şahin tarafından reddedilmiştir. Ayşe Kaya
   console.log('t12 OK');
 }
 main().catch((e) => { console.error(e); process.exit(1); });
+
+assert.deepEqual(found('Milli Eğitim Bakanlığı (MEB) ve YÖK, YILDIRIM BEYAZIT ÜNİVERSİTESİ ile görüştü.'),
+  ['KURUM:Milli Eğitim Bakanlığı', 'KURUM:MEB', 'KURUM:YÖK', 'KURUM:YILDIRIM BEYAZIT ÜNİVERSİTESİ']);
+assert.deepEqual(found("MEB'den ve Yükseköğretim Kurulu'ndan yazı geldi."),
+  ['KURUM:MEB', 'KURUM:Yükseköğretim Kurulu']);
+assert.deepEqual(found('MEBUS ve YÖKSEL kurum kısaltması değildir.'), []);
+
+assert.deepEqual(found('Ankara Deneme Kurumu (ADK), ADK ile görüştü.'),
+  ['KURUM:Ankara Deneme Kurumu', 'KURUM:ADK', 'KURUM:ADK']);

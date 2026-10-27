@@ -2,6 +2,7 @@
 // Katman 1 (sağlamalı kimlikler, iletişim, plaka) ve Katman 2'nin numara tarafı (dosya no, tapu, yevmiye).
 // Lookbehind YOK: sınırlar leftBoundary/rightBoundary ile denetlenir.
 
+import { judgeSignatures } from '../../names/judgeSignatures';
 import { isValidTckn, isValidVkn, mersisKind, isValidTrIban, cardNetwork } from '../../validators/checksums';
 import { leftBoundary, rightBoundary, isAlnum, isDigit, lowerView, trLower } from '../../text/turkish';
 import { findDockets, classifyDockets } from '../../legal/citation';
@@ -208,8 +209,9 @@ export function detectAll(text: string, currentYear = new Date().getFullYear()):
   const laws = findLawRefs(text);
   const dc = detectDocketsAndCitations(text, currentYear);
   const protectedSpans = [...laws, ...dc.protectedSpans];
-  const order: Cat[] = ['IBAN', 'TCKN', 'YKN', 'MERSIS', 'KART', 'VKN', 'TELEFON', 'EPOSTA', 'TAPU', 'YEVMIYE', 'DOSYA_NO', 'DOGUM_TARIHI', 'PLAKA'];
-  const all = [...detectIban(text), ...detectTcknYkn(text), ...detectMersisAndCards(text), ...detectVkn(text), ...detectPhones(text),
+  const order: Cat[] = ['OZEL', 'IBAN', 'TCKN', 'YKN', 'MERSIS', 'KART', 'VKN', 'TELEFON', 'EPOSTA', 'TAPU', 'YEVMIYE', 'DOSYA_NO', 'DOGUM_TARIHI', 'PLAKA'];
+  const signatures: Raw[] = judgeSignatures(text).flatMap((s) => s.number ? [{ ...s.number, category: 'OZEL' as const, ruleId: 'L1.HAKIM_SICIL', confidence: 'HIGH' as const }] : []);
+  const all = [...signatures, ...detectIban(text), ...detectTcknYkn(text), ...detectMersisAndCards(text), ...detectVkn(text), ...detectPhones(text),
     ...detectEmails(text), ...detectLandRecords(text), ...detectNotaryJournal(text), ...dc.raws, ...detectBirthDates(text), ...detectPlates(text)];
   const conf = { HIGH: 3, MEDIUM: 2, LOW: 1 } as const;
   all.sort((a, b) => conf[b.confidence] - conf[a.confidence] || order.indexOf(a.category) - order.indexOf(b.category) || (b.end - b.start) - (a.end - a.start));

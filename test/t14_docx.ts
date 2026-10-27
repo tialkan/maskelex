@@ -39,7 +39,7 @@ async function main(): Promise<void> {
   const all = Object.values(z).map((b) => dec.decode(b)).join('\n');
   for (const secret of ['Kaya', 'Ayşe', '10000000146', 'Gizli Yazar', 'Mehmet Öz']) assert.ok(!all.includes(secret), secret);
   const back = readDocxSync(f.bytes);
-  assert.equal(back.text, "ANKARA NÖBETÇİ ASLİYE HUKUK MAHKEMESİ'NE\nDAVACI : [DAVACI_1] (T.C. Kimlik No: [TCKN_1])\nDavacı [DAVACI_1]'in talebi\tyerindedir.\nbağlantı");
+  assert.equal(back.text, "[KURUM_1]'e\nDAVACI : [DAVACI_1] (T.C. Kimlik No: [TCKN_1])\nDavacı [DAVACI_1]'in talebi\tyerindedir.\nbağlantı");
   // Biçim korunur: başlık kalın ve ortalı, etiket kalın (adın ilk parçasının biçimi)
   assert.ok(back.marks.some((m) => m.style.bold && back.text.slice(m.span.start, m.span.end).includes('[DAVACI_1]')));
   assert.equal(back.blocks[0]!.kind === 'paragraph' && back.blocks[0]!.style.align, 'center');

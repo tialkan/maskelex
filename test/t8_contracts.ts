@@ -6,7 +6,7 @@ for (const s of ['[Davacı_1]', '\\[DAVACI\\_1\\]', '[ŞIRKET_A]', '[ŞİRKET_A]
 assert.equal(alphaIndex(1), 'A'); assert.equal(alphaIndex(26), 'Z'); assert.equal(alphaIndex(27), 'AA'); assert.equal(alphaIndex(52), 'AZ'); assert.equal(alphaIndex(53), 'BA');
 assert.equal(makeToken('ŞİRKET', 2, 'ALPHA'), '[ŞİRKET_B]');
 assert.equal(makeToken(ROLE_TOKEN_LABELS.BELIRSIZ, 1, 'NUMERIC'), '[KİŞİ_1]');
-assert.equal(DEFAULT_MASKING_OPTIONS.maskedCategories.KURUM, false);
+assert.equal(DEFAULT_MASKING_OPTIONS.maskedCategories.KURUM, true);
 assert.equal(DEFAULT_MASKING_OPTIONS.maskedCategories.TCKN, true);
 assert.equal(Object.keys(CATEGORY_SPECS).length, ENTITY_CATEGORIES.length);
 // Tüm etiket gövdeleri birbirinden farklı anahtara katlanmalı (çakışma = geri çözmede karışıklık)

@@ -4,6 +4,7 @@
 // K4 (ad sözlüğü) ve K8 (soyadı sözlüğü + kesme): names/data (kaynak: scripts/build-name-lexicon.mjs).
 // Kurallar: lookbehind yok (R-02), /i yok, bağlam lowerView üzerinde (R-03).
 
+import { judgeSignatures } from './judgeSignatures';
 import givenData from './data/given-names.json';
 import surnameData from './data/surnames.json';
 import { foldKey, leftBoundary, lowerView, rightBoundary } from '../text/turkish';
@@ -31,7 +32,8 @@ const COMPANY_TYPES = ['Anonim Şirketi', 'Limited Şirketi', 'Kollektif Şirket
   'Koll. Şti.', 'Kom. Şti.', 'Ltd. Şti.', 'LTD. ŞTİ.', 'A.Ş.', 'Holding', 'HOLDİNG', 'Vakfı', 'Derneği', 'Koop.', 'Şti.', 'ŞTİ.', 'AŞ'];
 const SECTOR = new Set(['San.', 'Tic.', 'İnş.', 'Paz.', 'İth.', 'İhr.', 'Taah.', 'Turz.', 'Ltd.', 've', '&', 'SAN.', 'TİC.', 'İNŞ.', 'LTD.', 'VE']);
 const INSTITUTION_HEADS = ['Genel Müdürlüğü', 'Bakanlığı', 'Belediyesi', 'Başkanlığı', 'Müdürlüğü', 'Valiliği', 'Kaymakamlığı', 'Üniversitesi',
-  'Kurumu', 'Kurulu', 'Müsteşarlığı', 'Rektörlüğü'];
+  'Kurumu', 'Kurulu', 'Müsteşarlığı', 'Rektörlüğü', 'Mahkemesi', 'Dairesi'];
+const INSTITUTION_ABBREVIATIONS = ['MEB', 'YÖK', 'SGK', 'TÜİK', 'TBMM', 'ÖSYM', 'RTÜK', 'HSK', 'UYAP'];
 const HON_BEFORE: ReadonlyArray<readonly [string, EntityMatch['honorificBefore'] & string]> = [['sayın', 'sayın'], ['sn.', 'sn.'], ['bayan', 'bayan'], ['bay', 'bay']];
 const HON_AFTER: ReadonlyArray<readonly [string, EntityMatch['honorificAfter'] & string]> = [['beyefendi', 'beyefendi'], ['hanımefendi', 'hanımefendi'], ['bey', 'bey'], ['hanım', 'hanım']];
 
@@ -101,9 +103,11 @@ const HEAD_WORDS: ReadonlySet<string> = new Set(INSTITUTION_HEADS.map((h) => h.s
 const ROLE_WORDS: ReadonlySet<string> = new Set(ROLE_CUES.map(([c]) => foldKey(c)).concat(['vekili', 'davaci', 'davali'].map(foldKey)));
 
 function k7Institutions(text: string, out: Hit[]): void {
+  const view = lowerView(text);
   for (const h of INSTITUTION_HEADS) {
-    for (let i = text.indexOf(h); i >= 0; i = text.indexOf(h, i + 1)) {
-      if (!leftBoundary(text, i)) continue;
+    const lower = h.toLocaleLowerCase('tr-TR');
+    for (let i = view.indexOf(lower); i >= 0; i = view.indexOf(lower, i + 1)) {
+      if (!leftBoundary(text, i) || !rightBoundary(text, i + h.length, (c) => /\p{L}/u.test(c))) continue;
       let start = i, cursor = i;
       for (let n = 0; n < 5; n++) {
         let j = cursor - 1;
@@ -119,6 +123,18 @@ function k7Institutions(text: string, out: Hit[]): void {
       out.push({ start, end: i + h.length, category: 'KURUM', confidence: 'HIGH', rule: 'L3.RULE.KURUM', prio: 3 });
     }
   }
+  const abbreviations = new Set(INSTITUTION_ABBREVIATIONS);
+  for (const hit of out.filter((h) => h.category === 'KURUM')) {
+    const following = text.slice(hit.end).match(/^[ \t]*\(([\p{Lu}]{2,10})\)/u);
+    const initials = text.slice(hit.start, hit.end).split(/[ \t]+/).map((w) => w[0]).join('');
+    if (following && following[1] === initials.toLocaleUpperCase('tr-TR')) abbreviations.add(following[1]);
+  }
+  for (const abbr of abbreviations) {
+    for (let i = text.indexOf(abbr); i >= 0; i = text.indexOf(abbr, i + 1)) {
+      if (leftBoundary(text, i) && rightBoundary(text, i + abbr.length, (c) => /[\p{L}\p{N}]/u.test(c)))
+        out.push({ start: i, end: i + abbr.length, category: 'KURUM', confidence: 'HIGH', rule: 'L3.RULE.KURUM_KISALTMA', prio: 3 });
+    }
+  }
 }
 
 export function detectNames(text: string): Hit[] {
@@ -126,6 +142,9 @@ export function detectNames(text: string): Hit[] {
   const out: Hit[] = [];
   k6Companies(text, out);
   k7Institutions(text, out);
+  for (const signature of judgeSignatures(text)) {
+    if (signature.name) out.push({ ...signature.name, category: 'KISI', confidence: 'HIGH', rule: 'L3.RULE.HAKIM_IMZA', role: 'HAKIM', prio: 6 });
+  }
 
   // K1: rol ipucu
   const cues = [...ROLE_CUES].sort((a, b) => b[0].length - a[0].length);

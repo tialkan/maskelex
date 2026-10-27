@@ -60,7 +60,7 @@ export interface CategorySpec {
 export const CATEGORY_SPECS: Readonly<Record<EntityCategory, CategorySpec>> = {
   KISI:         { tokenLabel: 'KİŞİ',         displayName: 'Kişi',              group: 'KISI_KURUM', colorVar: '--mlx-c-kisi',     defaultMasked: true,  index: 'NUMERIC', twinCapable: true,  detectorOwner: 'AGENT-2' },
   SIRKET:       { tokenLabel: 'ŞİRKET',       displayName: 'Şirket',            group: 'KISI_KURUM', colorVar: '--mlx-c-sirket',   defaultMasked: true,  index: 'ALPHA',   twinCapable: true,  detectorOwner: 'AGENT-2' },
-  KURUM:        { tokenLabel: 'KURUM',        displayName: 'Kamu kurumu',       group: 'KISI_KURUM', colorVar: '--mlx-c-kurum',    defaultMasked: false, index: 'NUMERIC', twinCapable: false, detectorOwner: 'AGENT-2' },
+  KURUM:        { tokenLabel: 'KURUM',        displayName: 'Kamu kurumu',       group: 'KISI_KURUM', colorVar: '--mlx-c-kurum',    defaultMasked: true, index: 'NUMERIC', twinCapable: false, detectorOwner: 'AGENT-2' },
   ADRES:        { tokenLabel: 'ADRES',        displayName: 'Adres',             group: 'ADRES',      colorVar: '--mlx-c-adres',    defaultMasked: true,  index: 'NUMERIC', twinCapable: false, detectorOwner: 'AGENT-1' },
   TCKN:         { tokenLabel: 'TCKN',         displayName: 'T.C. kimlik no',    group: 'KIMLIK',     colorVar: '--mlx-c-kimlik',   defaultMasked: true,  index: 'NUMERIC', twinCapable: false, detectorOwner: 'AGENT-1' },
   YKN:          { tokenLabel: 'YKN',          displayName: 'Yabancı kimlik no', group: 'KIMLIK',     colorVar: '--mlx-c-kimlik',   defaultMasked: true,  index: 'NUMERIC', twinCapable: false, detectorOwner: 'AGENT-1' },

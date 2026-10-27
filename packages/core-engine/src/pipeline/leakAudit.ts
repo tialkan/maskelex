@@ -1,6 +1,7 @@
 // packages/core-engine/src/pipeline/leakAudit.ts
 // Sızıntı denetimi (MASTER 3.0.4, K-12). Kopyalama düğmesi bu denetim temiz dönmeden etkinleşmez.
 
+import { judgeSignatures } from '../names/judgeSignatures';
 import { detectAll } from '../detectors/deterministic/reference';
 import { lowerView, trLower, isAlnum, leftBoundary, rightBoundary } from '../text/turkish';
 import type { DocumentId, EntityCluster, MaskingSessionVault, ReviewItem, TextSpan } from '../types/contracts';
@@ -60,6 +61,11 @@ export function leakAudit(input: LeakAuditInput): ReviewItem[] {
     for (const p of parts) {
       for (const hit of findCapitalized(masked, view, p)) if (!inToken(hit)) push(hit, `${label(e)} adının bir parçası metinde kaldı.`, e.id);
     }
+  }
+  // İmza bloğu, ilk tespitte atlanmış olsa bile yeniden denetlenir.
+  for (const signature of judgeSignatures(masked)) {
+    if (signature.name && !inToken(signature.name)) push(signature.name, 'Maskelenmemiş hâkim adı kaldı.');
+    if (signature.number && !inToken(signature.number)) push(signature.number, 'Maskelenmemiş hâkim sicil numarası kaldı.');
   }
   // 3) Katman 1 yeniden: maskeli metinde YÜKSEK güvenli kimlik/iletişim bulgusu kalmamalı
   for (const r of detectAll(masked, input.currentYear).raws) {
