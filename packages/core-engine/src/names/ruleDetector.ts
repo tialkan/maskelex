@@ -107,7 +107,10 @@ function k7Institutions(text: string, out: Hit[]): void {
   for (const h of INSTITUTION_HEADS) {
     const lower = h.toLocaleLowerCase('tr-TR');
     for (let i = view.indexOf(lower); i >= 0; i = view.indexOf(lower, i + 1)) {
-      if (!leftBoundary(text, i) || !rightBoundary(text, i + h.length, (c) => /\p{L}/u.test(c))) continue;
+      if (!leftBoundary(text, i)) continue;
+      const end = i + h.length;
+      const suffix = view.slice(end).match(/^(?:n(?:dan|den|dadır|dedir|daki|deki|daki|deki|da|de|ın|in|un|ün|a|e|ı|i|u|ü|ca|ce)|yla|yle)(?![\p{L}\p{N}])/u)?.[0] ?? '';
+      if (!suffix && !rightBoundary(text, end, (c) => /\p{L}/u.test(c))) continue;
       let start = i, cursor = i;
       for (let n = 0; n < 5; n++) {
         let j = cursor - 1;
@@ -120,7 +123,7 @@ function k7Institutions(text: string, out: Hit[]): void {
         start = k + 1; cursor = k + 1;
       }
       if (start === i) continue;
-      out.push({ start, end: i + h.length, category: 'KURUM', confidence: 'HIGH', rule: 'L3.RULE.KURUM', prio: 3 });
+      out.push({ start, end: end + suffix.length, category: 'KURUM', confidence: 'HIGH', rule: 'L3.RULE.KURUM', prio: 3 });
     }
   }
   const abbreviations = new Set(INSTITUTION_ABBREVIATIONS);

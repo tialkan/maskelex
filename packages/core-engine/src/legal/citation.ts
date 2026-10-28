@@ -104,6 +104,10 @@ export function classifyDockets(text: string, dockets: readonly DocketMatch[]): 
     else if (nearestRight(hr) < nearestRight(lr)) { verdict = 'PROTECT'; confidence = 'MEDIUM'; reason = 'sağda yüksek mahkeme işareti'; }
     else if (nearestRight(lr) < Infinity) { verdict = 'MASK'; confidence = 'MEDIUM'; reason = 'sağda yerel işaret'; }
     else { verdict = 'MASK'; confidence = 'MEDIUM'; reason = 'işaret yok: gizlilik yönünde varsayılan'; }
+    // Kararın başlığındaki yürütmeyi durdurma itiraz numarası, emsal künyesi değil bu dosyaya aittir.
+    if (/y\s*\.\s*d\s*\.?\s*itiraz\s*(?:no|numarası)\s*[:.]?\s*$/u.test(view.slice(Math.max(0, first.start - 40), first.start))) {
+      verdict = 'MASK'; confidence = 'HIGH'; reason = 'yürütmeyi durdurma itiraz numarası';
+    }
     if (verdict === 'PROTECT') {
       const ctx = view.slice(lStart, rEnd);
       if (OWN_CASE_RE.test(ctx) && !PRECEDENT_RE.test(ctx)) { verdict = 'REVIEW'; reason += '; kendi dosyası olabilir'; }

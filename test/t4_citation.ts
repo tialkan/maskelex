@@ -34,3 +34,6 @@ assert.deepEqual(verdicts("İstanbul Bölge Adliye Mahkemesinin 2023/1 E. sayıl
 assert.deepEqual(verdicts('AİHM büyük dairesinin 2019/5 sayılı kararı'), [['2019/5', 'PROTECT']]);
 assert.deepEqual(verdicts('bamya 2020/3 E.'), [['2020/3', 'MASK']]);
 console.log('t4 OK');
+
+const ydText = 'ANKARA BÖLGE İDARE MAHKEMESİ\n4. İDARİ DAVA DAİRESİ\nY.D İtiraz No : 2021/1071';
+assert.equal(classifyDockets(ydText, findDockets(ydText, 2026))[0]?.verdict, 'MASK');

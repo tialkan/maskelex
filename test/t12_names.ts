@@ -52,3 +52,6 @@ assert.deepEqual(found('MEBUS ve YÖKSEL kurum kısaltması değildir.'), []);
 
 assert.deepEqual(found('Ankara Deneme Kurumu (ADK), ADK ile görüştü.'),
   ['KURUM:Ankara Deneme Kurumu', 'KURUM:ADK', 'KURUM:ADK']);
+
+assert.deepEqual(found('Millî Eğitim Bakanlığında ve Yıldırım Beyazıt Üniversitesince, Yükseköğretim Kurulunun görüşü.'),
+  ['KURUM:Millî Eğitim Bakanlığında', 'KURUM:Yıldırım Beyazıt Üniversitesince', 'KURUM:Yükseköğretim Kurulunun']);
