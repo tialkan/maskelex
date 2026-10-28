@@ -34,6 +34,7 @@ export function findLawRefs(text: string): Protected[] {
   for (const m of text.matchAll(LAW_REF_RE)) {
     const s = m.index!, e = s + m[0].length;
     if (!leftBoundary(text, s) || !rightBoundary(text, e, isAlnum)) continue;   // "AYŞE" içindeki "AY" kanun değildir
+    if (/^[0-9]/.test(m[0]) && /[\/0-9]/.test(text[s - 1] ?? '')) continue; // dosya numarasının son kısmı kanun değildir
     if (/^[\p{Lu}]+$/u.test(m[0]) && !LAW_ABBR.includes(m[0])) continue;
     out.push({ start: s, end: e, reason: 'KANUN_ATFI', ruleId: 'L2.KANUN', ownCaseSuspect: false });
   }
@@ -204,6 +205,22 @@ export function detectNotaryJournal(text: string): Raw[] {
   return out;
 }
 
+/** Belirgin evrak numaraları ve sağlık bilgisi ifadeleri. */
+export function detectSensitiveDetails(text: string): Raw[] {
+  const out: Raw[] = [];
+  const view = lowerView(text);
+  const patterns: Array<[RegExp, Cat, string]> = [
+    [/\be\.\s*[0-9]{4,12}(?![0-9/])/gu, 'DOSYA_NO', 'L1.EVRAK_NO'],
+    [/[0-9]{3,}\/[0-9]{2,}(?:\.[0-9]{1,})?(?:\/[0-9]{3,})+(?=\s+sayılı)/gu, 'DOSYA_NO', 'L1.EVRAK_NO'],
+    [/(?:sağlık\s+(?:problemi|problemleri|sorunu|sorunları|durumu|sorunundan|problemlerinden)|(?:hastalık|hastalıkları|rahatsızlık|rahatsızlığı|teşhis|tanı|tedavi|ameliyat|psikiyatrik)\s*(?:nedeniyle|sebebiyle))/gu, 'OZEL', 'L1.SAGLIK'],
+  ];
+  for (const [re, category, ruleId] of patterns) for (const m of view.matchAll(re)) {
+    const start = m.index!, end = start + m[0].length;
+    if (leftBoundary(view, start) && rightBoundary(view, end, isAlnum)) out.push({ start, end, category, ruleId, confidence: 'HIGH' });
+  }
+  return out;
+}
+
 /** Hepsini çalıştır; korunan aralıkla örtüşen bulguları at; çakışmaları öncelik/uzunlukla çöz. */
 export function detectAll(text: string, currentYear = new Date().getFullYear()): { raws: Raw[]; protectedSpans: Protected[] } {
   const laws = findLawRefs(text);
@@ -211,7 +228,7 @@ export function detectAll(text: string, currentYear = new Date().getFullYear()):
   const protectedSpans = [...laws, ...dc.protectedSpans];
   const order: Cat[] = ['OZEL', 'IBAN', 'TCKN', 'YKN', 'MERSIS', 'KART', 'VKN', 'TELEFON', 'EPOSTA', 'TAPU', 'YEVMIYE', 'DOSYA_NO', 'DOGUM_TARIHI', 'PLAKA'];
   const signatures: Raw[] = judgeSignatures(text).flatMap((s) => s.number ? [{ ...s.number, category: 'OZEL' as const, ruleId: 'L1.HAKIM_SICIL', confidence: 'HIGH' as const }] : []);
-  const all = [...signatures, ...detectIban(text), ...detectTcknYkn(text), ...detectMersisAndCards(text), ...detectVkn(text), ...detectPhones(text),
+  const all = [...signatures, ...detectSensitiveDetails(text), ...detectIban(text), ...detectTcknYkn(text), ...detectMersisAndCards(text), ...detectVkn(text), ...detectPhones(text),
     ...detectEmails(text), ...detectLandRecords(text), ...detectNotaryJournal(text), ...dc.raws, ...detectBirthDates(text), ...detectPlates(text)];
   const conf = { HIGH: 3, MEDIUM: 2, LOW: 1 } as const;
   all.sort((a, b) => conf[b.confidence] - conf[a.confidence] || order.indexOf(a.category) - order.indexOf(b.category) || (b.end - b.start) - (a.end - a.start));
